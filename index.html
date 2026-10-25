@@ -533,8 +533,11 @@ const SCHEMA = [
     { key: 'gemini_models', label: 'Gemini models, tried in order', type: 'str', adv: true },
     { key: 'max_upload_mb', label: 'Largest analysis copy sent to Gemini (MB)', type: 'int', min: 10, max: 2000, adv: true },
   ]},
-  { section: 'run', title: 'Volume', blurb: '', fields: [
-    { key: 'reels_per_day', label: 'Reels per day', type: 'int', min: 1, max: 20 },
+  { section: 'run', title: 'Volume', blurb: 'How many reels each scheduled run makes.', fields: [
+    { key: 'schedule_mode', label: 'Each scheduled run makes', type: 'enum', options: [['batch', 'All free moments'], ['daily', 'Reels per day']],
+      hint: 'All free moments = every new video is fully turned into reels on the next run.' },
+    { key: 'reels_per_day', label: 'Reels per day (daily mode)', type: 'int', min: 1, max: 20 },
+    { key: 'batch_minutes', label: 'Batch time limit (minutes)', type: 'int', min: 5, max: 300, adv: true },
     { key: 'timezone', label: 'Time zone for date folders', type: 'str', tz: true, adv: true },
   ]},
   { section: 'storage', title: 'Storage', blurb: 'Where the files live. Change only if you renamed folders in Drive.', adv: true, fields: [
@@ -699,7 +702,7 @@ async function annotationsFor(run) {
 }
 
 /* ============================================================= dispatching jobs */
-const TASK_LABEL = { 'make-reels': 'Make reels', 'custom-reel': 'Custom reel', 'refresh-status': 'Refresh status', 'check-setup': 'Check setup' };
+const TASK_LABEL = { 'batch-reels': 'Make all reels', 'make-reels': 'Make reels', 'custom-reel': 'Custom reel', 'refresh-status': 'Refresh status', 'check-setup': 'Check setup', 'reset-source': 'Start video over' };
 async function dispatch(task, inputs) {
   const clean = { task };
   for (const [k, v] of Object.entries(inputs || {})) {
@@ -960,6 +963,15 @@ function runPill(run) {
   const [cls, text] = map[run.conclusion] || ['idle', run.conclusion || 'Done'];
   return h('span', { class: 'pill ' + cls }, text);
 }
+function reelLabel(name) {
+  const n = String(name || '').replace(/\.mp4$/, '');
+  if (/^(reel|extra)_\d+$/.test(n)) return n.replace('_', ' ');
+  const m = n.match(/_(\d+)$/);
+  return m ? '#' + m[1] : n;
+}
+function freeMoments(src) {
+  return ((src && src.analysis && src.analysis.scenes) || []).filter(x => !x.used).length;
+}
 function reelCard(day, reel) {
   const img = h('img', { alt: '', loading: 'lazy', hidden: true });
   if (reel.thumb) thumbUrl(reel.thumb).then(u => { if (u) { img.src = u; img.hidden = false; } });
@@ -967,7 +979,7 @@ function reelCard(day, reel) {
   const link = driveHref(reel.link);
   const fallback = reel.emotion && reel.matched && reel.matched !== reel.emotion;
   return h('div', { class: 'reel' },
-    h('div', { class: 'thumb' }, img, h('span', { class: 'badge' }, reel.name.replace('.mp4', '').replace('_', ' ')),
+    h('div', { class: 'thumb' }, img, h('span', { class: 'badge' }, reelLabel(reel.name)),
       reel.emotion ? emoChip(reel.emotion) : null, icon('film')),
     h('div', { class: 'meta' },
       h('div', { class: 'name ellipsis', title: reel.source || '' }, reel.source ? clipName(reel.source) : 'Unknown source'),
@@ -1000,7 +1012,7 @@ function renderOverview(view) {
   const reactNext = st ? nextReactionLabel(st) : '–';
   const grid = h('div', { class: 'grid stats' },
     statCard('Next run', paused ? 'pause' : 'clock', paused ? 'Paused' : next ? fmtWhen(next) : '–',
-      S.sched ? `Daily at ${pad(S.sched.hour)}:${pad(S.sched.minute)} (${S.sched.tz.replace('_', ' ')})` : 'Schedule not found'),
+      S.sched ? `Daily at ${pad(S.sched.hour)}:${pad(S.sched.minute)} · ${S.cfgValues['run.schedule_mode'] === 'batch' ? 'all new moments' : `${S.cfgValues['run.reels_per_day'] || 2} reels`}` : 'Schedule not found'),
     statCard('Last run', 'play', last ? h('span', null, runPill(last)) : 'None yet',
       last ? `${relTime(last.run_started_at || last.created_at)} · ${last.event === 'schedule' ? 'scheduled' : 'manual'}` : 'Start one from Make',
       last && last.status === 'completed' && last.conclusion !== 'success' ? lastRunError(last) : null),
@@ -1014,7 +1026,7 @@ function renderOverview(view) {
 
   view.append(h('div', { class: 'section-head' }, h('h2', null, 'Quick actions')));
   view.append(h('div', { class: 'row wrap' },
-    taskButton('make-reels', {}, "Make today's reels", 'btn primary', 'play'),
+    taskButton('batch-reels', {}, 'Make all reels', 'btn primary', 'play'),
     h('button', { class: 'btn', onclick: () => gotoTab('make') }, icon('wand'), 'Custom reel'),
     taskButton('refresh-status', {}, 'Refresh status', 'btn', 'refresh'),
     st && st.storage && driveHref(st.storage.links.root) ? h('a', { class: 'btn ghost', href: driveHref(st.storage.links.root), target: '_blank', rel: 'noopener noreferrer' }, icon('folder'), 'Open Drive folder') : null));
@@ -1027,7 +1039,7 @@ function renderOverview(view) {
   if (todayDay && todayDay.reels.length) view.append(h('div', { class: 'reels' }, todayDay.reels.map(r => reelCard(todayDay, r))));
   else view.append(h('div', { class: 'empty' }, h('h3', null, 'No reels for today yet'),
     h('div', { class: 'small' }, paused ? 'Daily reels are paused.' : next ? `The next automatic run is ${fmtWhen(next).toLowerCase()}.` : ''),
-    h('div', { style: { marginTop: '14px' } }, taskButton('make-reels', {}, 'Make them now', 'btn primary sm', 'play'))));
+    h('div', { style: { marginTop: '14px' } }, taskButton('batch-reels', {}, 'Make all reels now', 'btn primary sm', 'play'))));
 
   const earlier = days.filter(d => d.date !== today).slice(0, 6);
   if (earlier.length) {
@@ -1084,6 +1096,10 @@ function renderMake(view) {
   const busy = S.live && !S.live.done;
   if (busy) view.append(h('div', { class: 'banner info', style: { marginBottom: '14px' } }, icon('info'), h('div', null, 'A job is running. You can start the next one when it finishes.')));
 
+  /* batch */
+  view.append(batchCard(st));
+  view.append(h('div', { class: 'section-head' }, h('h2', null, 'A few reels')));
+
   /* daily */
   const D = M.daily;
   const perDay = (st && st.config.reels_per_day) || S.cfgValues['run.reels_per_day'] || 2;
@@ -1103,7 +1119,7 @@ function renderMake(view) {
   reactSel.value = D.reaction;
   view.append(h('div', { class: 'card' },
     h('div', { class: 'row between wrap', style: { marginBottom: '14px' } },
-      h('div', null, h('h2', null, 'Daily reels'), h('div', { class: 'small muted' }, 'Same as the automatic morning run, on demand.'))),
+      h('div', null, h('div', { class: 'small muted' }, 'A set number of reels for a date folder: the best free moments across your videos.'))),
     h('div', { class: 'form-grid' },
       h('div', { class: 'field' }, h('label', null, 'Date folder'), dateIn),
       h('div', { class: 'field' }, h('label', null, 'How many'), countIn),
@@ -1128,6 +1144,38 @@ function renderMake(view) {
     h('div', { class: 'card flat stack' }, h('div', { class: 'row' }, icon('stethoscope'), h('h3', null, 'Check setup')),
       h('div', { class: 'small muted' }, 'Checks FFmpeg, your settings, the Google Drive connection and the folders. Makes no reels.'),
       taskButton('check-setup', {}, 'Check setup', 'btn'))));
+}
+function batchCard(st) {
+  const B = (S.make.batch ||= { source: '', max: '', dry: false });
+  const sources = st ? st.sources.filter(s => !s.exhausted) : [];
+  const selected = sources.find(s => s.name === B.source);
+  const ready = selected ? freeMoments(selected) : sources.reduce((n, s) => n + freeMoments(s), 0);
+  const unanalysed = (selected ? [selected] : sources).filter(s => !s.analysis).length;
+  const note = h('div', { class: 'small muted' });
+  const paint = () => {
+    const sel = sources.find(s => s.name === B.source);
+    const n = sel ? freeMoments(sel) : sources.reduce((k, s) => k + freeMoments(s), 0);
+    const un = (sel ? [sel] : sources).filter(s => !s.analysis).length;
+    note.textContent = (n ? `${n} analysed moment${n === 1 ? '' : 's'} ready` : 'No analysed moments ready') +
+      (un ? ` + ${un} video${un === 1 ? '' : 's'} still to analyse (done first, about 1 min per 3 min of video)` : '') +
+      '. Each becomes a 10 s reel with the reaction that fits it.' + (B.dry ? ' Dry run: only shows the plan.' : '');
+  };
+  const srcSel = h('select', { class: 'input', onchange: e => { B.source = e.target.value; paint(); } },
+    h('option', { value: '' }, `All videos (${sources.length})`),
+    sources.map(s => h('option', { value: s.name }, clipName(s.name) + (s.analysis ? ` · ${freeMoments(s)} moments` : ' · not analysed'))));
+  srcSel.value = B.source;
+  paint();
+  return h('div', { class: 'card' },
+    h('div', { style: { marginBottom: '14px' } }, h('h2', null, 'Make all reels'),
+      h('div', { class: 'small muted' }, 'Turn every good moment of a video into a reel, each with a matching reaction. Already used moments are skipped, so you can run it again any time.')),
+    h('div', { class: 'form-grid' },
+      h('div', { class: 'field', style: { gridColumn: 'span 2' } }, h('label', null, 'Video'), srcSel),
+      h('div', { class: 'field' }, h('label', null, 'At most (optional)'),
+        h('input', { class: 'input num', type: 'number', min: 1, max: 200, placeholder: 'all', value: B.max, oninput: e => { B.max = e.target.value; } }))),
+    h('div', { style: { margin: '12px 0 4px' } }, note),
+    h('div', { class: 'row wrap', style: { marginTop: '14px', gap: '16px' } },
+      taskButton('batch-reels', () => ({ source: B.source, count: B.max, dry_run: B.dry }), 'Make all reels', 'btn primary', 'play'),
+      h('label', { class: 'switch' }, h('input', { type: 'checkbox', checked: B.dry, onchange: e => { B.dry = e.target.checked; paint(); } }), 'Dry run')));
 }
 function customCard(st, today) {
   const C = S.make.custom, perReel = (st && st.config.duration) || 10;
@@ -1254,6 +1302,10 @@ function renderLibrary(view) {
         bar, sourceAnalysis(s)),
       h('div', { class: 'row', style: { flex: 'none' } },
         !s.exhausted && d ? h('button', { class: 'btn sm', onclick: () => { S.make.custom.source = s.name; S.make.custom.start = ''; gotoTab('make'); } }, icon('wand'), h('span', { class: 'hide-sm' }, 'Custom')) : null,
+        s.uses ? (() => { const b = taskButton('reset-source', { source: s.name }, 'Start over', 'btn sm ghost', 'refresh');
+          b.title = 'Forget which moments were used, so the whole video can be made into reels again';
+          b.addEventListener('click', ev => { if (!confirm(`Start "${clipName(s.name)}" over? All ${s.uses} used moments become available again (existing reels stay).`)) { ev.stopImmediatePropagation(); } }, { capture: true });
+          return b; })() : null,
         driveHref(s.link) ? h('a', { class: 'iconbtn', href: driveHref(s.link), target: '_blank', rel: 'noopener noreferrer', title: 'Open in Drive', 'aria-label': 'Open in Drive' }, icon('ext')) : null));
   }))));
 
