@@ -195,6 +195,21 @@ details.adv[open]>summary svg,svg.i.rot{transform:rotate(180deg)}
 .toast{pointer-events:auto;background:var(--text);color:var(--bg);border-radius:12px;padding:11px 15px;font-size:14px;font-weight:550;box-shadow:0 6px 24px rgba(0,0,0,.18);display:flex;gap:10px;align-items:center}
 .toast.bad{background:var(--bad);color:#fff}
 
+/* ---- emotions & scenes */
+.emo{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:650;border-radius:999px;padding:2px 8px 2px 7px;white-space:nowrap;background:color-mix(in srgb,var(--c) 15%,transparent);color:color-mix(in srgb,var(--c) 72%,var(--text))}
+.emo::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--c);flex:none}
+.thumb .emo{position:absolute;left:8px;bottom:8px;background:rgba(0,0,0,.62);color:#fff}
+.cats{grid-template-columns:repeat(auto-fill,minmax(205px,1fr));gap:10px}
+.cat{padding:14px;display:flex;flex-direction:column;gap:6px}
+.cat.missing{border-style:dashed;background:transparent}
+.scenes{display:flex;flex-wrap:wrap;gap:8px}
+.scene{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border-strong);background:var(--surface);border-radius:999px;padding:5px 12px 5px 10px;cursor:pointer;max-width:100%;min-width:0}
+.scene:hover{border-color:var(--faint)}
+.scene.used{opacity:.42;cursor:not-allowed}
+.scene.on{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 25%,transparent)}
+.tl .pk{position:absolute;top:50%;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;box-shadow:0 0 0 2px var(--surface-2);pointer-events:none}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+
 @media (max-width:640px){
   .stats{grid-template-columns:1fr 1fr;gap:10px}
   .stat{padding:14px}.stat .value{font-size:18px}
@@ -231,7 +246,7 @@ function h(tag, props, ...kids) {
   if (props) for (const [k, v] of Object.entries(props)) {
     if (v == null || v === false) continue;
     if (k === 'class') el.className = v;
-    else if (k === 'style' && typeof v === 'object') Object.assign(el.style, v);
+    else if (k === 'style' && typeof v === 'object') for (const [sk, sv] of Object.entries(v)) { if (sk.startsWith('--')) el.style.setProperty(sk, sv); else el.style[sk] = sv; }
     else if (k === 'dataset') Object.assign(el.dataset, v);
     else if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2), v);
     else if (k === 'value') el.value = v;
@@ -336,6 +351,19 @@ function b64encode(text) {
   for (let i = 0; i < bytesArr.length; i += 0x8000) bin += String.fromCharCode(...bytesArr.subarray(i, i + 0x8000));
   return btoa(bin);
 }
+
+/* -------------------------------------------------------------------- emotions */
+const EMO = {
+  laugh: ['Laugh', '#e09a00'], shock: ['Shock', '#e5484d'], hype: ['Hype', '#f76b15'], awe: ['Awe', '#0090ff'],
+  cringe: ['Cringe', '#8e4ec6'], aww: ['Aww', '#e93d82'], sad: ['Sad', '#3e63dd'], scared: ['Scared', '#6e56cf'],
+  confused: ['Confused', '#12a594'], angry: ['Angry', '#ce2c31'], neutral: ['Watching', '#8b8d98'], any: ['Untagged', '#8b8d98'],
+};
+function emoLabel(key) { return (EMO[key] || ['Unknown'])[0]; }
+function emoChip(key, text) {
+  const [label, color] = EMO[key] || ['Unknown', '#8b8d98'];
+  return h('span', { class: 'emo', style: { '--c': color } }, text || label);
+}
+function fileName(path) { return String(path || '').split('/').pop(); }
 
 /* ------------------------------------------------------------------ time zones */
 function tzParts(date, tz) {
@@ -494,6 +522,16 @@ const SCHEMA = [
     { key: 'min_gap', label: 'Gap between clips (seconds)', type: 'float', min: 0, max: 600, step: 1 },
     { key: 'reaction_random_start', label: 'Start long reaction clips at a random point', type: 'bool' },
     { key: 'low_stock_days', label: 'Warn when fewer days of material remain', type: 'int', min: 0, max: 365 },
+  ]},
+  { section: 'match', title: 'Scene matching', blurb: 'Judge each moment and pick a reaction that fits it.', fields: [
+    { key: 'enabled', label: 'Match reactions to scenes', type: 'bool' },
+    { key: 'align_peaks', label: 'Line up the scene peak with my reaction peak', type: 'bool' },
+    { key: 'judge', label: 'Scene judge', type: 'enum', options: [['auto', 'Auto'], ['gemini', 'Gemini'], ['local', 'Local']],
+      hint: 'Auto uses Gemini when the GEMINI_API_KEY secret exists, otherwise loudness and cuts.' },
+    { key: 'beat', label: 'Peak lands at (seconds into the reel)', type: 'float', min: 0.5, max: 120, step: 0.5 },
+    { key: 'moments_per_10min', label: 'Moments to find per 10 minutes', type: 'int', min: 2, max: 60, adv: true },
+    { key: 'gemini_models', label: 'Gemini models, tried in order', type: 'str', adv: true },
+    { key: 'max_upload_mb', label: 'Largest analysis copy sent to Gemini (MB)', type: 'int', min: 10, max: 2000, adv: true },
   ]},
   { section: 'run', title: 'Volume', blurb: '', fields: [
     { key: 'reels_per_day', label: 'Reels per day', type: 'int', min: 1, max: 20 },
@@ -927,12 +965,16 @@ function reelCard(day, reel) {
   if (reel.thumb) thumbUrl(reel.thumb).then(u => { if (u) { img.src = u; img.hidden = false; } });
   const extra = /^extra_/.test(reel.name);
   const link = driveHref(reel.link);
+  const fallback = reel.emotion && reel.matched && reel.matched !== reel.emotion;
   return h('div', { class: 'reel' },
-    h('div', { class: 'thumb' }, img, h('span', { class: 'badge' }, reel.name.replace('.mp4', '').replace('_', ' ')), icon('film')),
+    h('div', { class: 'thumb' }, img, h('span', { class: 'badge' }, reel.name.replace('.mp4', '').replace('_', ' ')),
+      reel.emotion ? emoChip(reel.emotion) : null, icon('film')),
     h('div', { class: 'meta' },
       h('div', { class: 'name ellipsis', title: reel.source || '' }, reel.source ? clipName(reel.source) : 'Unknown source'),
       h('div', { class: 'small muted num' }, reel.start != null ? `${hms(reel.start)}–${hms(reel.end)}` : '', extra ? ' · custom' : ''),
-      h('div', { class: 'small muted ellipsis', title: reel.reaction || '' }, reel.reaction ? 'Reaction: ' + clipName(reel.reaction) : ''),
+      reel.note ? h('div', { class: 'small ellipsis', title: reel.note }, reel.note) : null,
+      h('div', { class: 'small muted ellipsis', title: reel.reaction || '' }, reel.reaction ? 'Reaction: ' + clipName(fileName(reel.reaction)) : ''),
+      fallback ? h('div', { class: 'tiny', style: { color: 'var(--warn)' } }, `No ${emoLabel(reel.emotion).toLowerCase()} clip yet: used ${emoLabel(reel.matched).toLowerCase()}`) : null,
       link ? h('a', { class: 'link', href: link, target: '_blank', rel: 'noopener noreferrer', style: { marginTop: '6px' } }, 'Open in Drive', icon('ext')) : null));
 }
 function warningsBanners(view) {
@@ -965,7 +1007,9 @@ function renderOverview(view) {
     statCard('Fresh material', 'film', t ? `${t.clips_left} clips` : '–',
       t ? `About ${daysLeft} day${daysLeft === 1 ? '' : 's'} at ${st.config.reels_per_day}/day` + (t.unanalysed_sources ? ` · ${t.unanalysed_sources} not analysed` : '') : '',
       t ? h('div', { class: 'meter ' + meterCls }, h('i', { style: { width: `${Math.min(100, (daysLeft / Math.max(1, low * 2)) * 100)}%` } })) : null),
-    statCard('Reactions', 'user', t ? `${t.reactions} clip${t.reactions === 1 ? '' : 's'}` : '–', st ? reactNext : ''));
+    statCard('Reactions', 'user', t ? `${t.reactions} clip${t.reactions === 1 ? '' : 's'}` : '–',
+      st && st.categories ? `${st.categories.filter(c => c.clips).length} of ${st.categories.length} emotions covered` : (st ? reactNext : ''),
+      st && st.categories ? h('a', { class: 'link', href: '#', style: { marginTop: '8px' }, onclick: e => { e.preventDefault(); gotoTab('library'); } }, 'What to record →') : null));
   view.append(grid);
 
   view.append(h('div', { class: 'section-head' }, h('h2', null, 'Quick actions')));
@@ -1026,8 +1070,11 @@ function taskButton(task, inputs, label, cls = 'btn', iconName) {
 
 /* --------------------------------------------------------------------- make */
 function reactionOptions(st, autoLabel) {
+  const groups = {};
+  for (const r of (st ? st.reactions : [])) (groups[r.category || 'any'] ||= []).push(r);
+  const order = Object.keys(EMO).filter(k => groups[k]);
   return [h('option', { value: '' }, autoLabel),
-    ...(st ? st.reactions : []).map(r => h('option', { value: r.name }, clipName(r.name)))];
+    ...order.map(k => { const g = h('optgroup', { label: emoLabel(k) }); g.append(...groups[k].map(r => h('option', { value: r.name }, clipName(fileName(r.name))))); return g; })];
 }
 function renderMake(view) {
   const st = S.status, M = S.make, today = todayIn(tz());
@@ -1052,7 +1099,7 @@ function renderMake(view) {
   updateNote();
   const dateIn = h('input', { class: 'input', type: 'date', value: D.date, onchange: e => { D.date = e.target.value; renderView(true); } });
   const countIn = h('input', { class: 'input num', type: 'number', min: 1, max: 20, placeholder: String(perDay), value: D.count, oninput: e => { D.count = e.target.value; } , onchange: () => renderView(true) });
-  const reactSel = h('select', { class: 'input', onchange: e => { D.reaction = e.target.value; } }, reactionOptions(st, 'Automatic rotation'));
+  const reactSel = h('select', { class: 'input', onchange: e => { D.reaction = e.target.value; } }, reactionOptions(st, 'Match each scene (automatic)'));
   reactSel.value = D.reaction;
   view.append(h('div', { class: 'card' },
     h('div', { class: 'row between wrap', style: { marginBottom: '14px' } },
@@ -1090,6 +1137,7 @@ function customCard(st, today) {
   }
   const src = st.sources.find(s => s.name === C.source) || st.sources[0];
   const card = h('div', { class: 'card' });
+  const scenes = (src.analysis && src.analysis.scenes) || [];
   const draw = () => {
     const dur = src.duration;
     const start = parseHms(C.start);
@@ -1099,7 +1147,11 @@ function customCard(st, today) {
     else if (dur != null && dur >= perReel && start > dur - perReel + 0.05) msg = `Too late: the latest start is ${hms(dur - perReel)}.`;
     else if (dur != null && src.free && !(dur < perReel) && !src.free.some(([a, b]) => start >= a - 1e-6 && start <= b + 1e-6))
       msg = 'Overlaps a moment already used.' + (src.free.length ? ` Free starts: ${src.free.map(([a, b]) => a === b ? hms(a) : `${hms(a)}–${hms(b)}`).join(', ')}` : ' No free moments left.');
-    else { ok = true; msg = `Clip ${hms(start)}–${hms(start + perReel)}` + (dur == null ? ' (checked when the reel is made)' : ' is free.'); }
+    else {
+      ok = true; msg = `Clip ${hms(start)}–${hms(start + perReel)}` + (dur == null ? ' (checked when the reel is made)' : ' is free.');
+      const hit = scenes.find(sc => sc.peak >= start && sc.peak <= start + perReel);
+      if (hit) msg += ` ${emoLabel(hit.emotion || 'any')} moment${hit.note ? ': ' + hit.note : ''}.`;
+    }
 
     const srcSel = h('select', { class: 'input', onchange: e => { C.source = e.target.value; C.start = ''; renderView(true); } },
       st.sources.map(s => h('option', { value: s.name }, clipName(s.name) + (s.exhausted ? ' (used up)' : s.clips_left != null ? ` · ${s.clips_left} left` : ''))));
@@ -1107,7 +1159,7 @@ function customCard(st, today) {
     const startIn = h('input', { class: 'input num' + (ok ? '' : ' bad'), placeholder: 'e.g. 1:16', value: C.start, inputmode: 'decimal',
       oninput: e => { C.start = e.target.value; const pos = e.target.selectionStart; draw(); const n = $('#c-start'); if (n) { n.focus(); n.setSelectionRange(pos, pos); } } });
     startIn.id = 'c-start';
-    const reactSel = h('select', { class: 'input', onchange: e => { C.reaction = e.target.value; } }, reactionOptions(st, 'Next in rotation'));
+    const reactSel = h('select', { class: 'input', onchange: e => { C.reaction = e.target.value; } }, reactionOptions(st, 'Match the scene (automatic)'));
     reactSel.value = C.reaction;
 
     let timeline = h('div', { class: 'small muted' }, 'Length unknown until the video is analysed. Run "Refresh status" to see the free moments.');
@@ -1120,6 +1172,7 @@ function customCard(st, today) {
           C.start = hms(Math.round(t)); draw();
         } });
       for (const [a, b] of src.segments || []) tl.append(h('div', { class: 'used', title: `Used ${hms(a)}–${hms(b)}`, style: { left: `${(a / dur) * 100}%`, width: `${Math.max(0.6, ((b - a) / dur) * 100)}%` } }));
+      for (const sc of scenes) if (!sc.used) tl.append(h('div', { class: 'pk', title: `${emoLabel(sc.emotion || 'any')} at ${hms(sc.peak)}`, style: { left: `${(sc.peak / dur) * 100}%`, background: (EMO[sc.emotion] || EMO.any)[1] } }));
       if (C.start.trim() && !Number.isNaN(start) && start <= dur)
         tl.append(h('div', { class: 'sel' + (ok ? '' : ' bad'), style: { left: `${(start / dur) * 100}%`, width: `${Math.max(1, (Math.min(perReel, dur - start) / dur) * 100)}%` } }));
       timeline = h('div', null, tl,
@@ -1127,6 +1180,7 @@ function customCard(st, today) {
         h('div', { class: 'legend', style: { marginTop: '8px' } },
           h('span', null, h('i', { style: { background: 'var(--used)' } }), 'Already used'),
           h('span', null, h('i', { style: { background: 'var(--accent)' } }), 'Your pick'),
+          scenes.length ? h('span', null, h('i', { style: { background: EMO.laugh[1], borderRadius: '50%' } }), 'Analysed moment') : null,
           h('span', null, 'Tap the bar to choose a moment')));
     }
     card.replaceChildren(
@@ -1134,6 +1188,17 @@ function customCard(st, today) {
       h('div', { class: 'form-grid' },
         h('div', { class: 'field', style: { gridColumn: '1/-1' } }, h('label', null, 'Video'), srcSel)),
       h('div', { style: { margin: '14px 0' } }, timeline),
+      scenes.length ? h('div', { style: { margin: '0 0 16px' } },
+        h('div', { class: 'small', style: { fontWeight: 600, marginBottom: '8px' } },
+          `Analysed moments (${scenes.filter(x => !x.used).length} free)`, src.analysis.by ? h('span', { class: 'muted', style: { fontWeight: 400 } }, ` · judged by ${String(src.analysis.by).startsWith('gemini') ? 'Gemini' : 'local analysis'}`) : null),
+        h('div', { class: 'scenes' }, scenes.map(sc => {
+          const on = C.start.trim() && Math.abs(parseHms(C.start) - sc.start) < 0.6;
+          return h('button', { type: 'button', class: 'scene' + (sc.used ? ' used' : '') + (on ? ' on' : ''), disabled: sc.used ? true : null,
+            title: (sc.note || '') + (sc.line ? ` - "${sc.line}"` : '') + (sc.used ? ' (already used)' : ''),
+            onclick: () => { C.start = hms(sc.start); draw(); } },
+            h('span', { class: 'num small', style: { fontWeight: 650 } }, hms(sc.start)), emoChip(sc.emotion || 'any'),
+            sc.note ? h('span', { class: 'small muted ellipsis', style: { maxWidth: '220px' } }, sc.note) : null);
+        }))) : null,
       h('div', { class: 'form-grid' },
         h('div', { class: 'field' }, h('label', { for: 'c-start' }, 'Start time'), startIn, h('div', { class: ok ? 'hint' : 'err' }, msg)),
         h('div', { class: 'field' }, h('label', null, 'Reaction'), reactSel),
@@ -1147,10 +1212,35 @@ function customCard(st, today) {
 }
 
 /* ------------------------------------------------------------------ library */
+function sourceAnalysis(s) {
+  const a = s.analysis;
+  if (!a) return h('div', { class: 'tiny faint', style: { marginTop: '6px' } }, 'Moments not analysed yet: this happens the first time the video is used, or with Refresh status.');
+  const counts = {};
+  for (const sc of a.scenes || []) if (!sc.used) counts[sc.emotion || 'any'] = (counts[sc.emotion || 'any'] || 0) + 1;
+  const keys = Object.keys(EMO).filter(k => counts[k]);
+  return h('div', null,
+    h('div', { class: 'tiny muted', style: { marginTop: '8px' } },
+      `${(a.scenes || []).length} moments found by ${String(a.by || '').startsWith('gemini') ? 'Gemini' : 'local analysis'}` + (a.note ? ` · ${a.note}` : '')),
+    keys.length ? h('div', { class: 'chips' }, keys.map(k => emoChip(k, `${k === 'any' ? 'Unknown' : emoLabel(k)} ${counts[k]}`))) : null);
+}
 function renderLibrary(view) {
   const st = S.status;
   if (!st) { view.append(h('div', { class: 'empty' }, h('h3', null, 'Nothing loaded yet'), h('div', { class: 'small' }, 'Run "Refresh status" from Make to load your library.'), h('div', { style: { marginTop: '14px' } }, taskButton('refresh-status', {}, 'Refresh status', 'btn primary sm')))); return; }
   const perReel = st.config.duration || 10, links = st.storage.links || {};
+  if (st.categories) {
+    const covered = st.categories.filter(c => c.clips).length;
+    view.append(h('div', { class: 'section-head' }, h('h2', null, 'Your reaction set'),
+      h('span', { class: 'small muted' }, `${covered} of ${st.categories.length} emotions covered`)));
+    view.append(h('div', { class: 'small muted', style: { margin: '-4px 0 12px' } },
+      `Record 10-second clips with the big reaction at about ${st.config.beat || 5} s, and put each in ${st.storage.folders.reactions}/<emotion>/ in Drive (for example ${st.storage.folders.reactions}/laugh/). Start with the ones marked "Record first".`,
+      st.untagged_clips ? ` ${st.untagged_clips} clip${st.untagged_clips === 1 ? ' is' : 's are'} not in an emotion folder yet and only used when nothing fits.` : ''));
+    view.append(h('div', { class: 'grid cats' }, st.categories.map(c => h('div', { class: 'card flat cat' + (c.clips ? '' : ' missing') },
+      h('div', { class: 'row between' }, emoChip(c.key), h('span', { class: 'small num', style: { fontWeight: 650, color: c.clips ? 'var(--ok)' : 'var(--faint)' } }, c.clips ? `${c.clips} clip${c.clips === 1 ? '' : 's'}` : 'none')),
+      h('div', { class: 'tiny muted' }, 'For: ' + c.scene),
+      h('div', { class: 'tiny' }, c.record),
+      c.scenes_waiting && !c.clips ? h('div', { class: 'tiny', style: { color: 'var(--warn)', fontWeight: 650 } }, `${c.scenes_waiting} scene${c.scenes_waiting === 1 ? '' : 's'} waiting for this`) : null,
+      c.core && !c.clips ? h('div', { class: 'tiny', style: { color: 'var(--accent)', fontWeight: 700 } }, 'Record first') : null))));
+  }
   view.append(h('div', { class: 'section-head' }, h('h2', null, `Long videos (${st.sources.length})`),
     driveHref(links.sources) ? h('a', { class: 'link', href: driveHref(links.sources), target: '_blank', rel: 'noopener noreferrer' }, icon('folder'), st.storage.folders.sources, icon('ext')) : null));
   if (!st.sources.length) view.append(h('div', { class: 'empty' }, 'No long videos yet. Upload some to ', st.storage.folders.sources, '.'));
@@ -1161,7 +1251,7 @@ function renderLibrary(view) {
       h('div', { class: 'grow' },
         h('div', { class: 't ellipsis', title: s.name }, clipName(s.name)),
         h('div', { class: 'small muted num' }, [d ? hms(d) : 'not analysed', `${s.uses} used`, s.exhausted ? 'used up' : s.clips_left != null ? `~${s.clips_left} clips left` : null, bytes(s.size)].filter(Boolean).join(' · ')),
-        bar),
+        bar, sourceAnalysis(s)),
       h('div', { class: 'row', style: { flex: 'none' } },
         !s.exhausted && d ? h('button', { class: 'btn sm', onclick: () => { S.make.custom.source = s.name; S.make.custom.start = ''; gotoTab('make'); } }, icon('wand'), h('span', { class: 'hide-sm' }, 'Custom')) : null,
         driveHref(s.link) ? h('a', { class: 'iconbtn', href: driveHref(s.link), target: '_blank', rel: 'noopener noreferrer', title: 'Open in Drive', 'aria-label': 'Open in Drive' }, icon('ext')) : null));
@@ -1169,12 +1259,11 @@ function renderLibrary(view) {
 
   view.append(h('div', { class: 'section-head' }, h('h2', null, `Reaction clips (${st.reactions.length})`),
     driveHref(links.reactions) ? h('a', { class: 'link', href: driveHref(links.reactions), target: '_blank', rel: 'noopener noreferrer' }, icon('folder'), st.storage.folders.reactions, icon('ext')) : null));
-  if (st.rotation && st.rotation.new_round && st.reactions.length) view.append(h('div', { class: 'small muted', style: { margin: '-4px 0 10px' } }, 'Every clip has been used this round. The next reel starts a new shuffled round' + (st.reactions.length > 1 && st.rotation.last ? `, not with ${clipName(st.rotation.last)}.` : '.')));
   if (!st.reactions.length) view.append(h('div', { class: 'empty' }, 'No reaction clips yet.'));
   else view.append(h('div', { class: 'card' }, h('div', { class: 'list' }, st.reactions.map(r => h('div', { class: 'item' },
-    r.next ? h('span', { class: 'badge-n', title: 'Position in the rotation' }, '#' + r.next) : h('span', { class: 'badge-n', style: { background: 'var(--surface-2)', color: 'var(--faint)' }, title: 'Used this round' }, '–'),
-    h('div', { class: 'grow' }, h('div', { class: 't ellipsis', title: r.name }, clipName(r.name)),
-      h('div', { class: 'small muted' }, [`used ${r.uses}×`, r.next === 1 ? 'up next' : r.next ? `in ${r.next} reels` : 'used this round', bytes(r.size)].join(' · '))),
+    emoChip(r.category || 'any'),
+    h('div', { class: 'grow' }, h('div', { class: 't ellipsis', title: r.name }, clipName(fileName(r.name))),
+      h('div', { class: 'small muted' }, [`used ${r.uses}×`, r.peak != null ? `peaks at ${Number(r.peak).toFixed(1)} s` : 'peak measured on first use', r.duration ? `${Number(r.duration).toFixed(0)} s long` : null, bytes(r.size)].filter(Boolean).join(' · '))),
     driveHref(r.link) ? h('a', { class: 'iconbtn', href: driveHref(r.link), target: '_blank', rel: 'noopener noreferrer', title: 'Open in Drive', 'aria-label': 'Open in Drive' }, icon('ext')) : null)))));
 
   view.append(h('div', { class: 'section-head' }, h('h2', null, 'History'), h('span', { class: 'small muted' }, `${st.totals.reels_made} reels made`)));
@@ -1184,9 +1273,9 @@ function renderLibrary(view) {
     if (x.thumb) thumbUrl(x.thumb).then(u => { if (u) { img.src = u; img.hidden = false; } });
     return h('div', { class: 'item' }, h('div', { class: 'mini-thumb' }, img),
       h('div', { class: 'grow' },
-        h('div', { class: 't' }, `${x.date} · ${String(x.reel).replace('.mp4', '').replace('_', ' ')}`),
+        h('div', { class: 'row', style: { gap: '8px' } }, h('span', { class: 't' }, `${x.date} · ${String(x.reel).replace('.mp4', '').replace('_', ' ')}`), x.emotion ? emoChip(x.emotion) : null),
         h('div', { class: 'small muted ellipsis', title: x.source }, `${clipName(x.source)} @ ${hms(x.start)}–${hms(x.end)}`),
-        h('div', { class: 'small muted ellipsis', title: x.reaction }, 'Reaction: ' + clipName(x.reaction))));
+        h('div', { class: 'small muted ellipsis', title: x.reaction }, 'Reaction: ' + clipName(fileName(x.reaction)) + (x.note ? ` · ${x.note}` : ''))));
   }))));
 }
 
@@ -1295,8 +1384,14 @@ function renderSettings(view) {
   view.append(scheduleCard());
   for (const sec of SCHEMA) {
     const basic = sec.fields.filter(f => !f.adv && !sec.adv), adv = sec.fields.filter(f => f.adv || sec.adv);
+    const keyNote = sec.section === 'match' && S.status && S.status.config ? (S.status.config.gemini_key
+      ? h('div', { class: 'banner info', style: { marginBottom: '14px' } }, icon('check'), h('div', null, 'Gemini key connected: scenes are judged by AI.'))
+      : h('div', { class: 'banner warn', style: { marginBottom: '14px' } }, icon('key'), h('div', null,
+          'No Gemini key yet, so emotions are mostly unknown. Get a free key at aistudio.google.com/apikey and add it as the ',
+          h('a', { class: 'link', href: ghHref(`${S.repo.html_url}/settings/secrets/actions/new`) || '#', target: '_blank', rel: 'noopener noreferrer' }, 'GEMINI_API_KEY secret', icon('ext')), '.'))) : null;
     const body = h('div', { class: 'card' },
       h('div', { style: { marginBottom: '14px' } }, h('h2', null, sec.title), sec.blurb ? h('div', { class: 'small muted' }, sec.blurb) : null),
+      keyNote,
       basic.length ? h('div', { class: 'form-grid' }, basic.map(f => fieldControl(sec.section, f))) : null,
       adv.length ? h('details', { class: 'adv', style: { marginTop: basic.length ? '18px' : 0 } },
         h('summary', null, sec.adv ? 'Show storage settings' : 'Advanced', icon('down')),
