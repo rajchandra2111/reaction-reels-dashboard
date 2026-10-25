@@ -1,0 +1,1386 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src blob: data:; connect-src https://api.github.com; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f5f4f0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#131312" media="(prefers-color-scheme: dark)">
+<title>Reaction Reels</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='8' y='2' width='16' height='28' rx='4' fill='%23131312'/%3E%3Crect x='10' y='5' width='12' height='10.5' rx='1.5' fill='%23ef6a4c'/%3E%3Crect x='10' y='16.5' width='12' height='10.5' rx='1.5' fill='%237b6cf0'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#f5f4f0;--surface:#fff;--surface-2:#faf9f6;--border:#e6e3dc;--border-strong:#d3cfc5;
+  --text:#1b1a18;--muted:#6b6861;--faint:#9b978f;
+  --accent:#5a48dc;--accent-ink:#fff;--accent-soft:#eceafd;--focus:#7b6cf0;
+  --content:#ef6a4c;--reaction:#7b6cf0;
+  --ok:#1d8a4b;--ok-soft:#e2f3e9;--bad:#cf3a3a;--bad-soft:#fbe8e8;--warn:#a86d12;--warn-soft:#fbf1dd;--run:#2c68dc;--run-soft:#e5edfc;
+  --used:#efb3a4;--free:#cfe9d9;
+  --radius:16px;--radius-sm:10px;
+  --shadow:0 1px 2px rgba(25,20,10,.05),0 4px 14px rgba(25,20,10,.04);
+  --font:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#131312;--surface:#1c1c1a;--surface-2:#20201e;--border:#2e2d2a;--border-strong:#3d3c38;
+  --text:#ecebe7;--muted:#a3a098;--faint:#76736c;
+  --accent:#8b7ef5;--accent-ink:#141218;--accent-soft:#2a2645;--focus:#9d92f7;
+  --ok:#47c07a;--ok-soft:#173523;--bad:#f06a6a;--bad-soft:#3d1c1c;--warn:#e0a648;--warn-soft:#3a2c14;--run:#6f9bf4;--run-soft:#1b2843;
+  --used:#7b3d30;--free:#1f4430;
+  --shadow:0 1px 2px rgba(0,0,0,.3);
+}}
+:root[data-theme="dark"]{
+  --bg:#131312;--surface:#1c1c1a;--surface-2:#20201e;--border:#2e2d2a;--border-strong:#3d3c38;
+  --text:#ecebe7;--muted:#a3a098;--faint:#76736c;
+  --accent:#8b7ef5;--accent-ink:#141218;--accent-soft:#2a2645;--focus:#9d92f7;
+  --ok:#47c07a;--ok-soft:#173523;--bad:#f06a6a;--bad-soft:#3d1c1c;--warn:#e0a648;--warn-soft:#3a2c14;--run:#6f9bf4;--run-soft:#1b2843;
+  --used:#7b3d30;--free:#1f4430;
+  --shadow:0 1px 2px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 var(--font);-webkit-font-smoothing:antialiased}
+a{color:inherit}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.muted{color:var(--muted)}.faint{color:var(--faint)}.small{font-size:13px}.tiny{font-size:12px}
+.mono{font-family:var(--mono);font-size:13px}.num{font-variant-numeric:tabular-nums}
+.row{display:flex;align-items:center;gap:10px}.wrap{flex-wrap:wrap}.grow{flex:1;min-width:0}
+.stack>*+*{margin-top:12px}.between{justify-content:space-between}
+.ellipsis{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+svg.i{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+svg.i.fill{fill:currentColor;stroke:none}
+
+/* ---- shell */
+.topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 92%,transparent);border-bottom:1px solid var(--border);padding:0 max(16px,env(safe-area-inset-left))}
+.topbar-in{max-width:1120px;margin:0 auto;display:flex;align-items:center;gap:12px;height:58px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:650;letter-spacing:-.01em;font-size:16px;white-space:nowrap}
+.mark{width:18px;height:30px;border-radius:5px;background:var(--text);padding:3px;display:grid;grid-template-rows:1fr 1fr;gap:2px;flex:none}
+.mark i{display:block;border-radius:2px;background:var(--content)}.mark i+i{background:var(--reaction)}
+.chip{text-decoration:none;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:999px;padding:3px 10px;font-size:13px;color:var(--muted);background:var(--surface);max-width:260px}
+.fresh{font-size:12.5px;color:var(--muted);white-space:nowrap}
+.iconbtn{width:36px;height:36px;border-radius:10px;border:1px solid transparent;background:transparent;display:inline-grid;place-items:center;cursor:pointer;color:var(--muted)}
+.iconbtn:hover{background:var(--surface);border-color:var(--border);color:var(--text)}
+.tabs{max-width:1120px;margin:0 auto;display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;padding:0 max(16px,env(safe-area-inset-left))}
+.tabs::-webkit-scrollbar{display:none}
+.tab{border:0;background:none;padding:12px 12px 11px;cursor:pointer;color:var(--muted);font-weight:550;border-bottom:2px solid transparent;white-space:nowrap}
+.tab:hover{color:var(--text)}.tab[aria-selected="true"]{color:var(--text);border-bottom-color:var(--accent)}
+.navwrap{border-bottom:1px solid var(--border);background:var(--bg)}
+main,.live-wrap{max-width:1120px;margin:0 auto;padding:20px max(16px,env(safe-area-inset-left)) 0}
+main{padding-bottom:64px}
+h1,h2,h3{margin:0;letter-spacing:-.015em}
+h2{font-size:17px;font-weight:650}h3{font-size:15px;font-weight:650}
+.section-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:28px 0 12px}
+.section-head:first-child{margin-top:4px}
+
+/* ---- cards, stats */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
+.card.flat{box-shadow:none}
+.grid{display:grid;gap:14px}
+.stats{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+.stat .label{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.stat .value{font-size:22px;font-weight:650;letter-spacing:-.02em;margin-top:6px;line-height:1.25}
+.stat .sub{font-size:13px;color:var(--muted);margin-top:4px}
+.meter{height:6px;border-radius:999px;background:var(--border);overflow:hidden;margin-top:12px}
+.meter>i{display:block;height:100%;border-radius:999px;background:var(--ok)}
+.meter.warn>i{background:var(--warn)}.meter.bad>i{background:var(--bad)}
+.banner{display:flex;gap:10px;align-items:flex-start;border-radius:12px;padding:12px 14px;font-size:14px;border:1px solid}
+.banner.warn{background:var(--warn-soft);border-color:color-mix(in srgb,var(--warn) 30%,transparent);color:var(--text)}
+.banner.warn svg{color:var(--warn);margin-top:2px}
+.banner.bad{background:var(--bad-soft);border-color:color-mix(in srgb,var(--bad) 30%,transparent)}
+.banner.bad svg{color:var(--bad);margin-top:2px}
+.banner.info{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 25%,transparent)}
+.banner.info svg{color:var(--accent);margin-top:2px}
+
+/* ---- pills & buttons */
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:2px 9px 2px 8px;font-size:12.5px;font-weight:600;white-space:nowrap}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.run{background:var(--run-soft);color:var(--run)}.pill.run::before{animation:pulse 1.2s infinite}
+.pill.idle{background:var(--surface-2);color:var(--muted);border:1px solid var(--border)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+@keyframes pulse{50%{opacity:.35}}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:var(--radius-sm);border:1px solid var(--border-strong);background:var(--surface);padding:9px 14px;font-weight:600;cursor:pointer;text-decoration:none;white-space:nowrap;min-height:40px}
+.btn:hover{border-color:var(--faint)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--muted)}.btn.ghost:hover{color:var(--text);background:var(--surface-2)}
+.btn.sm{min-height:32px;padding:5px 10px;font-size:13.5px}
+.btn[disabled]{opacity:.55;cursor:not-allowed;filter:none}
+.link{display:inline-flex;align-items:center;gap:5px;color:var(--accent);text-decoration:none;font-weight:600;font-size:13.5px}
+.link:hover{text-decoration:underline}
+.spin{width:15px;height:15px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:spin .7s linear infinite;flex:none}
+@keyframes spin{to{transform:rotate(1turn)}}
+@media (prefers-reduced-motion:reduce){.spin,.pill.run::before{animation:none}}
+
+/* ---- forms */
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.field>label,.field>.lbl{font-size:13px;font-weight:600}
+.field .hint{font-size:12.5px;color:var(--muted)}
+.field .err{font-size:12.5px;color:var(--bad);font-weight:550}
+.field .okmsg{font-size:12.5px;color:var(--ok);font-weight:550}
+.input,select.input{width:100%;border:1px solid var(--border-strong);background:var(--surface);border-radius:var(--radius-sm);padding:9px 11px;min-height:40px}
+.input:focus{border-color:var(--focus);outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--focus) 22%,transparent)}
+.input.bad{border-color:var(--bad)}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+.switch{display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;user-select:none}
+.switch input{appearance:none;width:38px;height:22px;border-radius:999px;background:var(--border-strong);position:relative;cursor:pointer;flex:none;transition:background .15s}
+.switch input::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .15s;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.switch input:checked{background:var(--accent)}.switch input:checked::after{transform:translateX(16px)}
+.seg{display:flex;width:100%;border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:3px;background:var(--surface-2);gap:3px}
+.seg button{flex:1;white-space:nowrap;border:0;background:transparent;border-radius:7px;padding:6px 11px;cursor:pointer;font-weight:600;font-size:13.5px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.1)}
+.range{display:flex;align-items:center;gap:10px}.range input{flex:1;accent-color:var(--accent)}
+.range output{min-width:46px;text-align:right;font-variant-numeric:tabular-nums;font-size:13px;color:var(--muted)}
+details.adv>summary{cursor:pointer;color:var(--muted);font-weight:600;font-size:13.5px;list-style:none;display:flex;align-items:center;gap:6px}
+details.adv>summary::-webkit-details-marker{display:none}
+details.adv[open]>summary svg,svg.i.rot{transform:rotate(180deg)}
+
+/* ---- reels */
+.reels{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:14px}
+.reel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--shadow)}
+.thumb{aspect-ratio:9/16;background:linear-gradient(var(--content) 0 50%,var(--reaction) 50% 100%);opacity:.9;position:relative;display:grid;place-items:center;color:#fff}
+.thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.thumb .badge{position:absolute;left:8px;top:8px;background:rgba(0,0,0,.6);color:#fff;font-size:11.5px;font-weight:650;border-radius:6px;padding:2px 7px}
+.reel .meta{padding:11px 12px 12px;display:flex;flex-direction:column;gap:3px;min-width:0}
+.reel .name{font-weight:650;font-size:14px}
+.empty{border:1px dashed var(--border-strong);border-radius:var(--radius);padding:28px 18px;text-align:center;color:var(--muted)}
+.empty h3{color:var(--text);margin-bottom:6px}
+
+/* ---- timeline */
+.tl{position:relative;height:34px;border-radius:9px;background:var(--surface-2);border:1px solid var(--border-strong);overflow:hidden;cursor:crosshair}
+.tl.mini{height:10px;border-radius:999px;cursor:default}
+.tl .used{position:absolute;top:0;bottom:0;background:var(--used)}
+.tl .sel{position:absolute;top:3px;bottom:3px;border-radius:6px;background:color-mix(in srgb,var(--accent) 35%,transparent);border:2px solid var(--accent)}
+.tl .sel.bad{background:color-mix(in srgb,var(--bad) 30%,transparent);border-color:var(--bad)}
+.tl-scale{display:flex;justify-content:space-between;font-size:12px;color:var(--faint);margin-top:4px;font-variant-numeric:tabular-nums}
+.legend{display:flex;gap:14px;font-size:12.5px;color:var(--muted);flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+
+/* ---- lists */
+.list{display:flex;flex-direction:column}
+.item{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--border);min-width:0}
+.item:first-child{border-top:0}
+.item .t{font-weight:600;font-size:14px}
+.badge-n{display:inline-grid;place-items:center;min-width:24px;height:24px;border-radius:7px;background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:12.5px;padding:0 6px}
+.mini-thumb{width:34px;height:60px;border-radius:6px;overflow:hidden;flex:none;background:linear-gradient(var(--content) 0 50%,var(--reaction) 50% 100%);position:relative}
+.mini-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+
+/* ---- live run */
+.live{border:1px solid color-mix(in srgb,var(--run) 35%,var(--border));background:linear-gradient(180deg,var(--run-soft),var(--surface) 70%)}
+.live.ok{border-color:color-mix(in srgb,var(--ok) 35%,var(--border));background:linear-gradient(180deg,var(--ok-soft),var(--surface) 70%)}
+.live.bad{border-color:color-mix(in srgb,var(--bad) 35%,var(--border));background:linear-gradient(180deg,var(--bad-soft),var(--surface) 70%)}
+.steps{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px 18px;margin-top:12px}
+.step{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--muted)}
+.step.active{color:var(--text);font-weight:600}.step.done{color:var(--text)}
+.step .dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--border-strong);flex:none;display:grid;place-items:center}
+.step.done .dot{border:0;background:var(--ok);color:#fff}.step.failed .dot{border:0;background:var(--bad);color:#fff}
+.step.active .dot{border-color:var(--run);border-right-color:transparent;animation:spin .8s linear infinite}
+.step .dot svg{width:11px;height:11px;stroke-width:3}
+.annot{font-size:13.5px;margin-top:10px;display:flex;gap:8px;align-items:flex-start}
+.annot svg{margin-top:2px}
+
+/* ---- connect */
+.connect{max-width:520px;margin:6vh auto 40px;padding:0 16px}
+.connect .card{padding:26px}
+.connect h1{font-size:24px;margin:16px 0 6px}
+.steps-list{margin:14px 0 0;padding-left:20px;color:var(--muted);font-size:14px}
+.steps-list li+li{margin-top:6px}
+
+/* ---- toast */
+#toasts{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:50;display:flex;flex-direction:column;gap:8px;align-items:center;width:min(92vw,460px);pointer-events:none}
+.toast{pointer-events:auto;background:var(--text);color:var(--bg);border-radius:12px;padding:11px 15px;font-size:14px;font-weight:550;box-shadow:0 6px 24px rgba(0,0,0,.18);display:flex;gap:10px;align-items:center}
+.toast.bad{background:var(--bad);color:#fff}
+
+@media (max-width:640px){
+  .stats{grid-template-columns:1fr 1fr;gap:10px}
+  .stat{padding:14px}.stat .value{font-size:18px}
+  .hide-sm{display:none!important}
+  .reels{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .card{padding:15px}
+  .chip{display:none}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toasts" role="status" aria-live="polite"></div>
+<script>
+'use strict';
+/* Reaction Reels dashboard. Runs entirely in your browser: it talks only to api.github.com with
+   the token you paste, which is kept in this browser's storage and never sent anywhere else. */
+
+const WORKFLOW = 'daily.yml';
+const DATA_BRANCH = 'dashboard-data';
+const STORE_KEY = 'rr.conn.v1';
+const THEME_KEY = 'rr.theme';
+const API = 'https://api.github.com';
+const TOKEN_URL = 'https://github.com/settings/personal-access-tokens/new?' + new URLSearchParams({
+  name: 'Reaction Reels dashboard',
+  description: 'Lets the Reaction Reels dashboard run jobs, read status and save settings for one repository.',
+  actions: 'write', contents: 'write', workflows: 'write', checks: 'read',
+}).toString();
+
+/* ======================================================================= helpers */
+const $ = (sel, root = document) => root.querySelector(sel);
+function h(tag, props, ...kids) {
+  const el = document.createElement(tag);
+  if (props) for (const [k, v] of Object.entries(props)) {
+    if (v == null || v === false) continue;
+    if (k === 'class') el.className = v;
+    else if (k === 'style' && typeof v === 'object') Object.assign(el.style, v);
+    else if (k === 'dataset') Object.assign(el.dataset, v);
+    else if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2), v);
+    else if (k === 'value') el.value = v;
+    else if (k === 'checked') el.checked = !!v;
+    else if (v === true) el.setAttribute(k, '');
+    else el.setAttribute(k, String(v));
+  }
+  for (const kid of kids.flat(Infinity)) {
+    if (kid == null || kid === false) continue;
+    el.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
+  }
+  return el;
+}
+const ICONS = {
+  refresh: 'M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7',
+  play: 'M8 5.5v13l10.5-6.5z',
+  ext: 'M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5',
+  check: 'M5 12.5l4.5 4.5L19 7.5',
+  x: 'M6 6l12 12M18 6L6 18',
+  alert: 'M12 4l9 16H3zM12 10v4M12 17.2v.1',
+  info: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 11v6M12 7.5v.1',
+  clock: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3.5 2',
+  pause: 'M9 5v14M15 5v14',
+  folder: 'M3 7.5A2.5 2.5 0 0 1 5.5 5H9l2 2.5h7.5A2.5 2.5 0 0 1 21 10v7.5a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z',
+  sun: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4',
+  moon: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
+  auto: 'M12 3a9 9 0 1 0 0 18zM12 3a9 9 0 0 1 0 18',
+  out: 'M15 4h3.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H15M10 16.5L14.5 12 10 7.5M14.5 12H3',
+  film: 'M4 4h16v16H4zM4 9h16M4 15h16M9 4v5M15 4v5M9 15v5M15 15v5',
+  wand: 'M5 19L15 9M14 4v2M14 12v2M10 8h2M18 8h2M17 5l-1.5 1.5M17 11l-1.5-1.5',
+  stethoscope: 'M6 3v6a4 4 0 0 0 8 0V3M10 13v2a5 5 0 0 0 10 0v-2M20 11a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z',
+  down: 'M6 9l6 6 6-6',
+  github: 'M9 19c-4 1.3-4-2-6-2.5M15 21v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6 0 0 0-1.3-3.2 4.2 4.2 0 0 0-.1-3.2s-1-.3-3.4 1.3a11.6 11.6 0 0 0-6 0C6.8 2.8 5.8 3.1 5.8 3.1a4.2 4.2 0 0 0-.1 3.2A4.6 4.6 0 0 0 4.4 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21',
+  key: 'M14.5 4a5.5 5.5 0 1 0 1.9 10.7L18 16.3V19h2.7v-2.7H23v-2l-5.8-5.8A5.5 5.5 0 0 0 14.5 4zM15 8.5h.1',
+  user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4.5 20a7.5 7.5 0 0 1 15 0',
+};
+function icon(name, extra = '') {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('class', 'i ' + extra);
+  svg.setAttribute('aria-hidden', 'true');
+  const p = document.createElementNS(ns, 'path');
+  p.setAttribute('d', ICONS[name] || ICONS.info);
+  svg.append(p);
+  return svg;
+}
+const pad = n => String(n).padStart(2, '0');
+function hms(s) {
+  if (s == null || !isFinite(s)) return '–';
+  const t = Math.round(Math.max(0, s)), hh = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), ss = t % 60;
+  return hh ? `${hh}:${pad(m)}:${pad(ss)}` : `${m}:${pad(ss)}`;
+}
+function parseHms(text) {
+  const raw = String(text ?? '').trim();
+  if (!raw) return null;
+  const parts = raw.split(':');
+  if (parts.length > 3 || !parts.every(p => /^\d+(\.\d+)?$/.test(p))) return NaN;
+  return parts.reduce((acc, p) => acc * 60 + parseFloat(p), 0);
+}
+function relTime(when) {
+  if (!when) return '–';
+  const d = typeof when === 'string' ? new Date(when) : when;
+  const s = (Date.now() - d.getTime()) / 1000;
+  if (s < 0) {
+    const f = -s;
+    if (f < 60) return 'in a moment';
+    if (f < 3600) return `in ${Math.round(f / 60)} min`;
+    if (f < 86400) return `in ${Math.round(f / 3600)} h`;
+    return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+  }
+  if (s < 45) return 'just now';
+  if (s < 3600) return `${Math.max(1, Math.round(s / 60))} min ago`;
+  if (s < 86400) return `${Math.round(s / 3600)} h ago`;
+  if (s < 172800) return 'yesterday';
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+}
+function dur(ms) {
+  if (!isFinite(ms) || ms < 0) return '–';
+  const s = Math.round(ms / 1000);
+  return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${pad(s % 60)}s`;
+}
+function bytes(n) {
+  if (n == null) return '';
+  const u = ['B', 'KB', 'MB', 'GB']; let i = 0;
+  while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+  return `${n.toFixed(n < 10 && i ? 1 : 0)} ${u[i]}`;
+}
+function clipName(name) { return String(name || '').replace(/\.(mp4|mov|m4v|mkv|webm|avi)$/i, ''); }
+function safeHref(url, hosts) {
+  try { const u = new URL(url); return u.protocol === 'https:' && hosts.includes(u.hostname) ? u.href : null; }
+  catch { return null; }
+}
+const driveHref = u => safeHref(u, ['drive.google.com']);
+const ghHref = u => safeHref(u, ['github.com']);
+function b64decode(b64) {
+  const bin = atob(String(b64).replace(/\s/g, ''));
+  return new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
+}
+function b64encode(text) {
+  const bytesArr = new TextEncoder().encode(text); let bin = '';
+  for (let i = 0; i < bytesArr.length; i += 0x8000) bin += String.fromCharCode(...bytesArr.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+
+/* ------------------------------------------------------------------ time zones */
+function tzParts(date, tz) {
+  const f = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
+  const p = Object.fromEntries(f.formatToParts(date).map(x => [x.type, x.value]));
+  return { y: +p.year, m: +p.month, d: +p.day, h: +p.hour % 24, mi: +p.minute, s: +p.second };
+}
+function tzOffset(date, tz) {
+  const p = tzParts(date, tz);
+  return Date.UTC(p.y, p.m - 1, p.d, p.h, p.mi, p.s) - Math.floor(date.getTime() / 1000) * 1000;
+}
+function zonedToUtc(y, m, d, hh, mi, tz) {
+  let t = Date.UTC(y, m - 1, d, hh, mi);
+  for (let i = 0; i < 3; i++) t = Date.UTC(y, m - 1, d, hh, mi) - tzOffset(new Date(t), tz);
+  return new Date(t);
+}
+function validTz(tz) { try { new Intl.DateTimeFormat('en', { timeZone: tz }); return true; } catch { return false; } }
+function todayIn(tz) { const p = tzParts(new Date(), validTz(tz) ? tz : 'UTC'); return `${p.y}-${pad(p.m)}-${pad(p.d)}`; }
+function nextRunAt(sched) {
+  if (!sched) return null;
+  const tz = validTz(sched.tz) ? sched.tz : 'UTC', now = new Date(), p = tzParts(now, tz);
+  let t = zonedToUtc(p.y, p.m, p.d, sched.hour, sched.minute, tz);
+  if (t <= now) {
+    const nd = new Date(Date.UTC(p.y, p.m - 1, p.d + 1));
+    t = zonedToUtc(nd.getUTCFullYear(), nd.getUTCMonth() + 1, nd.getUTCDate(), sched.hour, sched.minute, tz);
+  }
+  return t;
+}
+function fmtWhen(date) {
+  const now = new Date(), d0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const day = Math.round((new Date(date.getFullYear(), date.getMonth(), date.getDate()) - d0) / 864e5);
+  const time = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  if (day === 0) return `Today ${time}`;
+  if (day === 1) return `Tomorrow ${time}`;
+  return date.toLocaleDateString(undefined, { weekday: 'short' }) + ' ' + time;
+}
+
+/* ------------------------------------------------------------- workflow schedule */
+function parseSchedule(text) {
+  const lines = text.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(/^(\s*)-\s*cron:\s*(["']?)(\d{1,2})\s+(\d{1,2})\s+\*\s+\*\s+\*\2\s*(#.*)?$/);
+    if (!m) continue;
+    const next = lines[i + 1] || '';
+    const t = next.match(/^\s+timezone:\s*["']?([^"'\s#]+)["']?/);
+    return { line: i, indent: m[1], minute: +m[3], hour: +m[4], tz: t ? t[1] : 'UTC', tzLine: t ? i + 1 : -1 };
+  }
+  return null;
+}
+function setSchedule(text, hour, minute, tz) {
+  const s = parseSchedule(text);
+  if (!s) throw new Error('Could not find the daily schedule line in daily.yml');
+  const lines = text.split('\n');
+  lines[s.line] = `${s.indent}- cron: "${minute} ${hour} * * *"`;
+  const tzLine = `${s.indent}  timezone: "${tz}"`;
+  if (s.tzLine >= 0) lines[s.tzLine] = tzLine; else lines.splice(s.line + 1, 0, tzLine);
+  return lines.join('\n');
+}
+
+/* ----------------------------------------------------------------------- TOML */
+function splitValue(rest) {
+  if (rest[0] === '"') {
+    let j = 1;
+    while (j < rest.length) { if (rest[j] === '\\') { j += 2; continue; } if (rest[j] === '"') break; j++; }
+    return { raw: rest.slice(0, j + 1), tail: rest.slice(j + 1) };
+  }
+  if (rest[0] === "'") { const j = rest.indexOf("'", 1); return { raw: rest.slice(0, j + 1), tail: rest.slice(j + 1) }; }
+  const k = rest.indexOf('#');
+  const raw = (k < 0 ? rest : rest.slice(0, k)).trimEnd();
+  return { raw, tail: rest.slice(raw.length) };
+}
+function parseScalar(raw) {
+  if (raw === 'true') return true;
+  if (raw === 'false') return false;
+  if (/^".*"$/.test(raw)) { try { return JSON.parse(raw); } catch { return raw.slice(1, -1); } }
+  if (/^'.*'$/.test(raw)) return raw.slice(1, -1);
+  const n = Number(raw.replace(/_/g, ''));
+  return Number.isNaN(n) ? raw : n;
+}
+function tomlScan(text) {
+  const lines = text.split('\n'), entries = {}, sections = {};
+  let section = '';
+  lines.forEach((line, i) => {
+    const sec = line.match(/^\s*\[([A-Za-z0-9_.-]+)\]\s*(#.*)?$/);
+    if (sec) { section = sec[1]; sections[section] = { start: i, last: i }; return; }
+    const kv = line.match(/^(\s*)([A-Za-z0-9_-]+)(\s*=\s*)(.*)$/);
+    if (!kv) return;
+    const { raw, tail } = splitValue(kv[4]);
+    entries[`${section}.${kv[2]}`] = { line: i, prefix: kv[1] + kv[2] + kv[3], raw, tail, value: parseScalar(raw) };
+    if (sections[section]) sections[section].last = i;
+  });
+  return { lines, entries, sections };
+}
+function tomlFormat(v, type) {
+  if (type === 'bool') return v ? 'true' : 'false';
+  if (type === 'int') return String(Math.round(Number(v)));
+  if (type === 'float') { const s = String(Number(v)); return /[.eE]/.test(s) ? s : s + '.0'; }
+  return JSON.stringify(String(v));
+}
+function tomlSet(text, section, key, value, type) {
+  const scan = tomlScan(text), lines = scan.lines, raw = tomlFormat(value, type);
+  const e = scan.entries[`${section}.${key}`];
+  if (e) {
+    const hash = e.tail.indexOf('#');
+    if (hash >= 0) {
+      const col = e.prefix.length + e.raw.length + hash;
+      const gap = Math.max(1, col - e.prefix.length - raw.length);
+      lines[e.line] = e.prefix + raw + ' '.repeat(gap) + e.tail.slice(hash);
+    } else lines[e.line] = e.prefix + raw;
+  } else if (scan.sections[section]) {
+    lines.splice(scan.sections[section].last + 1, 0, `${key} = ${raw}`);
+  } else {
+    if (lines.length && lines[lines.length - 1] !== '') lines.push('');
+    lines.push(`[${section}]`, `${key} = ${raw}`, '');
+  }
+  return lines.join('\n');
+}
+
+/* ---------------------------------------------------------------- settings schema */
+const PRESETS = ['ultrafast', 'superfast', 'veryfast', 'faster', 'fast', 'medium', 'slow', 'slower', 'veryslow'];
+const SCHEMA = [
+  { section: 'reel', title: 'Look', blurb: 'How each reel is framed.', fields: [
+    { key: 'content_mode', label: 'Top half', type: 'enum', options: [['fill', 'Fill'], ['fit', 'Fit (blurred)']],
+      hint: 'Fill crops landscape video to fill the top. Fit shows the whole frame on a blurred copy.' },
+    { key: 'remove_black_bars', label: 'Remove cinema black bars', type: 'bool' },
+    { key: 'split', label: 'Top half size', type: 'float', min: 0.2, max: 0.8, step: 0.01, slider: true, show: v => `${Math.round(v * 100)}%` },
+    { key: 'duration', label: 'Reel length (seconds)', type: 'float', min: 1, max: 180, step: 0.5 },
+    { key: 'watermark', label: 'Watermark text', type: 'str', max: 60, placeholder: '@yourhandle', hint: 'Shown under the divider. Leave empty for none.' },
+    { key: 'watermark_size', label: 'Watermark size', type: 'int', min: 8, max: 200 },
+    { key: 'divider_px', label: 'Divider thickness (px)', type: 'int', min: 0, max: 100, hint: '0 = no line' },
+    { key: 'divider_color', label: 'Divider colour', type: 'str', placeholder: 'white or #ffffff' },
+    { key: 'reaction_crop_x', label: 'Reaction framing: left ↔ right', type: 'float', min: 0, max: 1, step: 0.05, slider: true, show: v => v.toFixed(2) },
+    { key: 'reaction_crop_y', label: 'Reaction framing: top ↔ bottom', type: 'float', min: 0, max: 1, step: 0.05, slider: true, show: v => v.toFixed(2) },
+    { key: 'content_crop_x', label: 'Content framing: left ↔ right', type: 'float', min: 0, max: 1, step: 0.05, slider: true, show: v => v.toFixed(2) },
+    { key: 'content_crop_y', label: 'Content framing: top ↔ bottom', type: 'float', min: 0, max: 1, step: 0.05, slider: true, show: v => v.toFixed(2) },
+    { key: 'width', label: 'Width (px)', type: 'int', min: 240, max: 4096, even: true, adv: true },
+    { key: 'height', label: 'Height (px)', type: 'int', min: 240, max: 4096, even: true, adv: true },
+    { key: 'fps', label: 'Frames per second', type: 'int', min: 1, max: 120, adv: true },
+    { key: 'crf', label: 'Quality (CRF, lower = better)', type: 'int', min: 0, max: 51, adv: true },
+    { key: 'preset', label: 'Encoder speed', type: 'enum', options: PRESETS.map(p => [p, p]), adv: true },
+    { key: 'watermark_font', label: 'Watermark font file', type: 'str', adv: true, placeholder: 'auto' },
+  ]},
+  { section: 'audio', title: 'Sound', blurb: 'Mix between the movie and your reaction.', fields: [
+    { key: 'content_volume', label: 'Content volume', type: 'float', min: 0, max: 4, step: 0.05, slider: true, show: v => `${Math.round(v * 100)}%` },
+    { key: 'reaction_volume', label: 'Reaction volume', type: 'float', min: 0, max: 4, step: 0.05, slider: true, show: v => `${Math.round(v * 100)}%` },
+    { key: 'normalize', label: 'Even out loudness', type: 'bool' },
+    { key: 'target_lufs', label: 'Loudness target (LUFS)', type: 'float', min: -30, max: -5, step: 0.5 },
+    { key: 'bitrate', label: 'Audio bitrate', type: 'str', pattern: /^\d+k$/, patternMsg: 'Looks like 160k', adv: true },
+  ]},
+  { section: 'picker', title: 'Picking clips', blurb: 'How moments and reactions are chosen.', fields: [
+    { key: 'selection', label: 'Moment selection', type: 'enum', options: [['random', 'Random'], ['loudest', 'Loudest']],
+      hint: 'Loudest prefers the most energetic moments (action, comedy, sport).' },
+    { key: 'skip_start', label: 'Never use the first … seconds', type: 'float', min: 0, max: 3600, step: 1 },
+    { key: 'skip_end', label: 'Never use the last … seconds', type: 'float', min: 0, max: 3600, step: 1 },
+    { key: 'min_gap', label: 'Gap between clips (seconds)', type: 'float', min: 0, max: 600, step: 1 },
+    { key: 'reaction_random_start', label: 'Start long reaction clips at a random point', type: 'bool' },
+    { key: 'low_stock_days', label: 'Warn when fewer days of material remain', type: 'int', min: 0, max: 365 },
+  ]},
+  { section: 'run', title: 'Volume', blurb: '', fields: [
+    { key: 'reels_per_day', label: 'Reels per day', type: 'int', min: 1, max: 20 },
+    { key: 'timezone', label: 'Time zone for date folders', type: 'str', tz: true, adv: true },
+  ]},
+  { section: 'storage', title: 'Storage', blurb: 'Where the files live. Change only if you renamed folders in Drive.', adv: true, fields: [
+    { key: 'backend', label: 'Backend', type: 'enum', options: [['rclone', 'Google Drive'], ['local', 'Local folder']] },
+    { key: 'rclone_remote', label: 'rclone remote name', type: 'str', pattern: /^[^:]+$/, patternMsg: 'Name without the colon' },
+    { key: 'root', label: 'Main folder', type: 'str' },
+    { key: 'sources_dir', label: 'Long videos folder', type: 'str' },
+    { key: 'reactions_dir', label: 'Reactions folder', type: 'str' },
+    { key: 'output_dir', label: 'Output folder', type: 'str' },
+    { key: 'done_dir', label: 'Used-up videos folder', type: 'str' },
+    { key: 'archive_exhausted', label: 'Move used-up videos to that folder', type: 'bool' },
+    { key: 'state_file', label: 'Memory file', type: 'str' },
+  ]},
+];
+function fieldError(f, v) {
+  if (f.type === 'bool') return '';
+  if (f.type === 'enum') return f.options.some(o => o[0] === v) ? '' : 'Pick one of the options';
+  if (f.type === 'str') {
+    if (f.max && v.length > f.max) return `At most ${f.max} characters`;
+    if (f.pattern && !f.pattern.test(v)) return f.patternMsg || 'Invalid value';
+    if (f.tz && !validTz(v)) return 'Not a valid time zone (e.g. Europe/Amsterdam)';
+    if (['sources_dir', 'reactions_dir', 'output_dir', 'done_dir', 'state_file', 'rclone_remote'].includes(f.key) && !v.trim()) return 'Required';
+    return '';
+  }
+  const n = Number(v);
+  if (v === '' || !isFinite(n)) return 'Enter a number';
+  if (f.type === 'int' && !Number.isInteger(n)) return 'Whole numbers only';
+  if (f.min != null && n < f.min) return `At least ${f.min}`;
+  if (f.max != null && n > f.max) return `At most ${f.max}`;
+  if (f.even && n % 2) return 'Must be an even number';
+  return '';
+}
+
+/* ======================================================================= state */
+const S = {
+  conn: null, repo: null, tab: 'overview',
+  status: null, statusMissing: false, statusLoadedAt: 0,
+  runs: [], runsLoadedAt: 0, seenCompleted: null,
+  wf: null, wfSha: null, sched: null, workflowState: null,
+  cfgText: null, cfgSha: null, cfgValues: {}, edits: {},
+  live: null, jobsCache: new Map(), annotCache: new Map(), thumbs: new Map(),
+  error: null, busy: new Set(), openRun: null,
+  make: { daily: { date: '', count: '', reaction: '', force: false, dry: false },
+          custom: { source: '', start: '', reaction: '', date: '', dry: false } },
+  schedEdit: null,
+};
+function loadConn() {
+  for (const store of [localStorage, sessionStorage]) {
+    try { const c = JSON.parse(store.getItem(STORE_KEY) || 'null'); if (c && c.token && c.owner && c.repo) return c; } catch {}
+  }
+  return null;
+}
+function saveConn(c, remember) {
+  try { localStorage.removeItem(STORE_KEY); sessionStorage.removeItem(STORE_KEY); } catch {}
+  try { (remember ? localStorage : sessionStorage).setItem(STORE_KEY, JSON.stringify(c)); } catch {}
+}
+function clearConn() { try { localStorage.removeItem(STORE_KEY); sessionStorage.removeItem(STORE_KEY); } catch {} }
+const repoPath = () => `/repos/${encodeURIComponent(S.conn.owner)}/${encodeURIComponent(S.conn.repo)}`;
+const encPath = p => p.split('/').map(encodeURIComponent).join('/');
+const tz = () => (S.status && S.status.timezone) || S.cfgValues['run.timezone'] || 'Europe/Amsterdam';
+
+/* ========================================================================= API */
+class ApiError extends Error { constructor(msg, status) { super(msg); this.status = status; } }
+async function gh(path, opt = {}) {
+  const url = path.startsWith('https://') ? path : API + path;
+  if (!url.startsWith(API + '/')) throw new ApiError('Blocked request to ' + url, 0);
+  const headers = { Authorization: 'Bearer ' + S.conn.token, Accept: opt.accept || 'application/vnd.github+json',
+                    'X-GitHub-Api-Version': '2022-11-28' };
+  let body;
+  if (opt.body !== undefined) { headers['Content-Type'] = 'application/json'; body = JSON.stringify(opt.body); }
+  let res;
+  try { res = await fetch(url, { method: opt.method || 'GET', headers, body, cache: 'no-store' }); }
+  catch { throw new ApiError('Cannot reach GitHub. Check your internet connection.', 0); }
+  if (res.status === 204) return null;
+  if (!res.ok) {
+    let msg = res.statusText || 'Request failed';
+    try { const j = await res.json(); msg = j.message || msg; } catch {}
+    if (res.status === 401) msg = 'GitHub rejected the token (expired or revoked). Connect again with a new token.';
+    if (res.status === 403 && res.headers.get('x-ratelimit-remaining') === '0') msg = 'GitHub rate limit reached. Try again in a few minutes.';
+    throw new ApiError(msg, res.status);
+  }
+  if (opt.as === 'blob') return res.blob();
+  if (opt.as === 'text') return res.text();
+  const ct = res.headers.get('content-type') || '';
+  return ct.includes('json') ? res.json() : res.text();
+}
+const raw = (p, ref) => gh(`${repoPath()}/contents/${encPath(p)}?ref=${encodeURIComponent(ref)}`,
+                           { accept: 'application/vnd.github.raw+json', as: 'text' });
+async function getFile(p, ref) {
+  const j = await gh(`${repoPath()}/contents/${encPath(p)}?ref=${encodeURIComponent(ref)}`);
+  return { text: b64decode(j.content || ''), sha: j.sha };
+}
+async function putFile(p, text, sha, message) {
+  return gh(`${repoPath()}/contents/${encPath(p)}`, { method: 'PUT',
+    body: { message, content: b64encode(text), sha, branch: S.repo.default_branch } });
+}
+
+/* ------------------------------------------------------------------- loaders */
+async function loadStatus() {
+  try {
+    const text = await raw('status.json', DATA_BRANCH);
+    S.status = JSON.parse(text); S.statusMissing = false;
+  } catch (e) {
+    if (e.status === 404) { S.status = null; S.statusMissing = true; } else throw e;
+  }
+  S.statusLoadedAt = Date.now();
+}
+async function loadRuns() {
+  const j = await gh(`${repoPath()}/actions/workflows/${WORKFLOW}/runs?per_page=20`);
+  S.runs = j.workflow_runs || [];
+  S.runsLoadedAt = Date.now();
+  const lastDone = S.runs.find(r => r.status === 'completed');
+  if (lastDone && S.seenCompleted !== null && lastDone.id !== S.seenCompleted) {
+    S.seenCompleted = lastDone.id;
+    await loadStatus().catch(() => {});
+  } else if (lastDone && S.seenCompleted === null) S.seenCompleted = lastDone.id;
+}
+async function loadWorkflow() {
+  try {
+    const f = await getFile(`.github/workflows/${WORKFLOW}`, S.repo.default_branch);
+    S.wf = f.text; S.wfSha = f.sha; S.sched = parseSchedule(f.text);
+  } catch (e) { if (e.status !== 404) throw e; S.wf = null; S.sched = null; }
+  try { const w = await gh(`${repoPath()}/actions/workflows/${WORKFLOW}`); S.workflowState = w.state; }
+  catch { S.workflowState = null; }
+}
+async function loadConfig() {
+  try {
+    const f = await getFile('config.toml', S.repo.default_branch);
+    S.cfgText = f.text; S.cfgSha = f.sha;
+    S.cfgValues = Object.fromEntries(Object.entries(tomlScan(f.text).entries).map(([k, e]) => [k, e.value]));
+  } catch (e) { if (e.status !== 404) throw e; S.cfgText = null; }
+}
+async function thumbUrl(p) {
+  if (!p) return null;
+  if (!S.thumbs.has(p)) {
+    S.thumbs.set(p, gh(`${repoPath()}/contents/${encPath(p)}?ref=${DATA_BRANCH}`,
+      { accept: 'application/vnd.github.raw+json', as: 'blob' })
+      .then(b => URL.createObjectURL(b)).catch(() => null));
+  }
+  return S.thumbs.get(p);
+}
+async function jobsFor(runId, fresh = false) {
+  if (!fresh && S.jobsCache.has(runId)) return S.jobsCache.get(runId);
+  const j = await gh(`${repoPath()}/actions/runs/${runId}/jobs`);
+  S.jobsCache.set(runId, j.jobs || []);
+  return j.jobs || [];
+}
+async function annotationsFor(run) {
+  if (S.annotCache.has(run.id)) return S.annotCache.get(run.id);
+  let out = [];
+  try {
+    const jobs = await jobsFor(run.id, true);
+    for (const job of jobs) {
+      if (!job.check_run_url) continue;
+      const a = await gh(job.check_run_url + '/annotations');
+      out = out.concat((a || []).map(x => ({ level: x.annotation_level, message: x.message, title: x.title })));
+    }
+  } catch { out = []; }
+  out = out.filter(a => a.message && !/^Process completed with exit code/.test(a.message));
+  S.annotCache.set(run.id, out);
+  return out;
+}
+
+/* ============================================================= dispatching jobs */
+const TASK_LABEL = { 'make-reels': 'Make reels', 'custom-reel': 'Custom reel', 'refresh-status': 'Refresh status', 'check-setup': 'Check setup' };
+async function dispatch(task, inputs) {
+  const clean = { task };
+  for (const [k, v] of Object.entries(inputs || {})) {
+    if (typeof v === 'boolean') clean[k] = v ? 'true' : 'false';
+    else if (v != null && String(v).trim() !== '') clean[k] = String(v).trim();
+  }
+  const body = { ref: S.repo.default_branch, inputs: clean, return_run_details: true };
+  const path = `${repoPath()}/actions/workflows/${WORKFLOW}/dispatches`;
+  const t0 = Date.now();
+  let res;
+  try { res = await gh(path, { method: 'POST', body }); }
+  catch (e) {
+    if (e.status === 422 && /return_run_details/i.test(e.message)) { delete body.return_run_details; res = await gh(path, { method: 'POST', body }); }
+    else if (e.status === 403 || e.status === 404) throw new ApiError('Your token cannot start jobs. It needs Actions: Read and write on this repository.', e.status);
+    else throw e;
+  }
+  const runId = res && (res.workflow_run_id || res.run_id || (res.workflow_run && res.workflow_run.id) || null);
+  S.live = { task, label: TASK_LABEL[task] || task, inputs: clean, t0, runId, run: null, jobs: [], done: false, annots: [] };
+  toast(`${S.live.label} started`);
+  renderLive();
+  await pollLive();
+  schedulePoll();
+}
+async function pollLive() {
+  const L = S.live;
+  if (!L || L.done) return;
+  if (!L.runId) {
+    const j = await gh(`${repoPath()}/actions/workflows/${WORKFLOW}/runs?event=workflow_dispatch&per_page=5`);
+    const found = (j.workflow_runs || []).find(r => new Date(r.created_at).getTime() >= L.t0 - 15000);
+    if (found) L.runId = found.id;
+    else if (Date.now() - L.t0 > 180000) {
+      L.done = true; L.lost = true;
+      L.annots = [{ level: 'failure', message: 'GitHub did not start the job within 3 minutes. Check the Runs tab, or try again.' }];
+      renderLive(); return;
+    } else { renderLive(); return; }
+  }
+  L.run = await gh(`${repoPath()}/actions/runs/${L.runId}`);
+  L.jobs = await jobsFor(L.runId, true).catch(() => L.jobs);
+  if (L.run.status === 'completed') {
+    L.done = true;
+    L.annots = await annotationsFor(L.run);
+    await Promise.all([loadRuns(), loadStatus()]).catch(() => {});
+    S.seenCompleted = L.run.id;
+    const ok = L.run.conclusion === 'success';
+    toast(ok ? `${L.label} finished` : `${L.label} ${L.run.conclusion === 'cancelled' ? 'was cancelled' : 'failed'}`, !ok);
+    renderView();
+  }
+  renderLive();
+}
+
+/* ============================================================== polling engine */
+let pollTimer = null;
+function schedulePoll() {
+  clearTimeout(pollTimer);
+  if (!S.conn || !S.repo || document.hidden) return;
+  const active = (S.live && !S.live.done) || S.runs.some(r => r.status !== 'completed');
+  pollTimer = setTimeout(tick, active ? 5000 : 60000);
+}
+async function tick() {
+  try {
+    if (S.live && !S.live.done) await pollLive();
+    await loadRuns();
+    if (Date.now() - S.statusLoadedAt > 5 * 60000) await loadStatus();
+    S.error = null;
+    refreshDynamic();
+  } catch (e) { onError(e, true); }
+  schedulePoll();
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && S.repo) tick(); else clearTimeout(pollTimer); });
+
+/* ======================================================================= render */
+function toast(msg, bad = false) {
+  const t = h('div', { class: 'toast' + (bad ? ' bad' : '') }, icon(bad ? 'alert' : 'check'), msg);
+  const box = $('#toasts'); box.append(t);
+  while (box.children.length > 3) box.firstElementChild.remove();
+  setTimeout(() => t.remove(), 4200);
+}
+function onError(e, quiet = false) {
+  console.error(e);
+  if (e.status === 401) { S.error = e.message; clearConn(); S.conn = null; S.repo = null; renderConnect(e.message); return; }
+  S.error = e.message || String(e);
+  if (!quiet) toast(S.error, true);
+  refreshDynamic();
+}
+function setTheme(next) {
+  if (next === 'auto') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = next;
+  try { localStorage.setItem(THEME_KEY, next); } catch {}
+}
+function currentTheme() { try { return localStorage.getItem(THEME_KEY) || 'auto'; } catch { return 'auto'; } }
+setTheme(currentTheme());
+
+/* ------------------------------------------------------------------ connect */
+function renderConnect(message) {
+  clearTimeout(pollTimer);
+  const app = $('#app'); app.replaceChildren();
+  const host = location.hostname.endsWith('.github.io') ? location.hostname.split('.')[0] : '';
+  const prev = loadConn();
+  const repoIn = h('input', { class: 'input', id: 'c-repo', autocomplete: 'off', spellcheck: 'false',
+    placeholder: 'owner/reaction-reels', value: prev ? `${prev.owner}/${prev.repo}` : (host ? `${host}/reaction-reels` : '') });
+  const tokIn = h('input', { class: 'input mono', id: 'c-token', type: 'password', autocomplete: 'off', spellcheck: 'false', placeholder: 'github_pat_…' });
+  const remember = h('input', { type: 'checkbox', checked: true });
+  const err = h('div', { class: 'err', role: 'alert' }, message || '');
+  const btn = h('button', { class: 'btn primary', type: 'submit', style: { width: '100%' } }, 'Connect');
+  const form = h('form', { class: 'stack', onsubmit: async ev => {
+    ev.preventDefault();
+    const m = repoIn.value.trim().replace(/^https:\/\/github\.com\//, '').replace(/\.git$/, '').match(/^([\w.-]+)\/([\w.-]+)$/);
+    if (!m) { err.textContent = 'Enter the repository as owner/name, e.g. rajchandra2111/reaction-reels'; return; }
+    if (!tokIn.value.trim()) { err.textContent = 'Paste your token first.'; return; }
+    btn.disabled = true; btn.replaceChildren(h('span', { class: 'spin' }), 'Connecting…'); err.textContent = '';
+    try { await connect({ owner: m[1], repo: m[2], token: tokIn.value.trim() }, remember.checked); }
+    catch (e) { err.textContent = e.message; btn.disabled = false; btn.replaceChildren('Connect'); }
+  } },
+    h('div', { class: 'field' }, h('label', { for: 'c-repo' }, 'Repository'), repoIn,
+      h('div', { class: 'hint' }, 'The private repo that runs your reels.')),
+    h('div', { class: 'field' }, h('label', { for: 'c-token' }, 'Access token'), tokIn,
+      h('div', { class: 'hint' }, h('a', { class: 'link', href: TOKEN_URL, target: '_blank', rel: 'noopener noreferrer' }, icon('key'), 'Create a token with the right permissions', icon('ext')))),
+    h('label', { class: 'switch' }, remember, 'Remember on this device'),
+    err, btn);
+  app.append(h('div', { class: 'connect' },
+    h('div', { class: 'card' },
+      h('div', { class: 'brand' }, h('span', { class: 'mark' }, h('i'), h('i')), 'Reaction Reels'),
+      h('h1', null, 'Connect your dashboard'),
+      h('p', { class: 'muted', style: { margin: '0 0 18px' } }, 'Run jobs, check what is left and change settings for your daily reels.'),
+      form,
+      h('details', { class: 'adv', style: { marginTop: '18px' } },
+        h('summary', null, 'How to make the token', icon('down')),
+        h('ol', { class: 'steps-list' },
+          h('li', null, 'Click the link above (it pre-selects Actions, Contents, Workflows and Checks).'),
+          h('li', null, 'Under Repository access choose Only select repositories, and pick your reels repo.'),
+          h('li', null, 'Pick an expiry (90 days is a good default), click Generate token, copy it here.'))),
+      h('p', { class: 'tiny faint', style: { margin: '16px 0 0' } },
+        'Your token stays in this browser and is only ever sent to api.github.com.'))));
+  (repoIn.value ? tokIn : repoIn).focus();
+}
+async function connect(conn, remember) {
+  S.conn = conn;
+  try { S.repo = await gh(repoPath()); }
+  catch (e) {
+    S.conn = null;
+    if (e.status === 404) throw new Error(`Can't see ${conn.owner}/${conn.repo}. Check the name, and that the token has access to this repository.`);
+    throw e;
+  }
+  if (remember !== undefined) saveConn(conn, remember);
+  await refreshAll(true);
+}
+async function refreshAll(first = false) {
+  if (first) renderShell();
+  S.busy.add('all'); refreshDynamic();
+  const results = await Promise.allSettled([loadStatus(), loadRuns(), loadWorkflow(), loadConfig()]);
+  S.busy.delete('all');
+  const failed = results.find(r => r.status === 'rejected');
+  if (failed) onError(failed.reason, !first); else S.error = null;
+  if (S.conn) { renderView(); refreshDynamic(); schedulePoll(); }
+}
+
+/* -------------------------------------------------------------------- shell */
+const TABS = [['overview', 'Overview'], ['make', 'Make'], ['library', 'Library'], ['runs', 'Runs'], ['settings', 'Settings']];
+function renderShell() {
+  const app = $('#app'); app.replaceChildren();
+  const themeBtn = h('button', { class: 'iconbtn', title: 'Theme', 'aria-label': 'Change theme', onclick: () => {
+    const order = ['auto', 'light', 'dark'], next = order[(order.indexOf(currentTheme()) + 1) % 3];
+    setTheme(next); themeBtn.replaceChildren(icon(next === 'auto' ? 'auto' : next === 'light' ? 'sun' : 'moon'));
+    toast(`Theme: ${next}`);
+  } }, icon(currentTheme() === 'auto' ? 'auto' : currentTheme() === 'light' ? 'sun' : 'moon'));
+  app.append(
+    h('header', { class: 'topbar' }, h('div', { class: 'topbar-in' },
+      h('div', { class: 'brand' }, h('span', { class: 'mark' }, h('i'), h('i')), h('span', null, 'Reaction Reels')),
+      h('a', { class: 'chip ellipsis', id: 'repo-chip', target: '_blank', rel: 'noopener noreferrer' }, icon('github'), h('span', { class: 'ellipsis' })),
+      h('div', { class: 'grow' }),
+      h('span', { class: 'fresh hide-sm', id: 'fresh' }),
+      h('button', { class: 'iconbtn', id: 'refresh-btn', title: 'Refresh', 'aria-label': 'Refresh', onclick: () => refreshAll() }, icon('refresh')),
+      themeBtn,
+      h('button', { class: 'iconbtn', title: 'Disconnect', 'aria-label': 'Disconnect', onclick: () => {
+        if (!confirm('Disconnect and forget the token on this device?')) return;
+        clearConn(); S.conn = null; S.repo = null; renderConnect();
+      } }, icon('out')))),
+    h('div', { class: 'navwrap' }, h('nav', { class: 'tabs', role: 'tablist', 'aria-label': 'Sections' },
+      TABS.map(([id, label]) => h('button', { class: 'tab', role: 'tab', id: 'tab-' + id, 'aria-selected': String(S.tab === id),
+        onclick: () => { S.tab = id; for (const b of document.querySelectorAll('.tab')) b.setAttribute('aria-selected', String(b.id === 'tab-' + id)); renderView(true); window.scrollTo({ top: 0 }); } }, label)))),
+    h('div', { class: 'live-wrap', id: 'live' }),
+    h('main', { id: 'view', role: 'tabpanel' }));
+}
+function refreshDynamic() {
+  if (!S.repo || !$('#view')) return;
+  const chip = $('#repo-chip');
+  if (chip) { chip.href = ghHref(S.repo.html_url) || '#'; chip.lastChild.textContent = S.repo.full_name; }
+  const fresh = $('#fresh');
+  if (fresh) fresh.textContent = S.status ? `Status ${relTime(S.status.generated_at)}` : '';
+  const rb = $('#refresh-btn');
+  if (rb) rb.replaceChildren(S.busy.has('all') ? h('span', { class: 'spin' }) : icon('refresh'));
+  renderLive();
+  if (S.tab === 'overview' || S.tab === 'runs' || S.tab === 'library') renderView();
+}
+function renderView(force = false) {
+  const view = $('#view'); if (!view) return;
+  const typing = view.contains(document.activeElement) && (S.tab === 'make' || S.tab === 'settings');
+  if (typing && !force) return;   // background refreshes never rebuild a form someone is using
+  const scrollY = window.scrollY;
+  view.replaceChildren();
+  if (S.error) view.append(h('div', { class: 'banner bad', style: { marginBottom: '16px' } }, icon('alert'), h('div', null, S.error)));
+  ({ overview: renderOverview, make: renderMake, library: renderLibrary, runs: renderRuns, settings: renderSettings }[S.tab])(view);
+  window.scrollTo({ top: scrollY });
+}
+
+/* --------------------------------------------------------------- live strip */
+function stepState(st) {
+  if (st.status === 'completed') return st.conclusion === 'success' ? 'done' : st.conclusion === 'skipped' ? 'skipped' : 'failed';
+  return st.status === 'in_progress' ? 'active' : 'waiting';
+}
+function renderLive() {
+  const box = $('#live'); if (!box) return;
+  const L = S.live;
+  if (!L) { box.replaceChildren(); return; }
+  const run = L.run;
+  const concl = run && run.status === 'completed' ? run.conclusion : null;
+  const cls = concl === 'success' ? 'ok' : concl ? 'bad' : '';
+  const started = run && (run.run_started_at || run.created_at);
+  const elapsed = run ? (concl ? new Date(run.updated_at) - new Date(started) : Date.now() - new Date(started)) : Date.now() - L.t0;
+  const pill = !run ? h('span', { class: 'pill ' + (L.lost ? 'bad' : 'run') }, L.lost ? 'Not started' : 'Starting') :
+    run.status !== 'completed' ? h('span', { class: 'pill run' }, run.status === 'queued' ? 'Queued' : 'Running') :
+    h('span', { class: 'pill ' + (concl === 'success' ? 'ok' : 'bad') }, concl === 'success' ? 'Done' : concl === 'cancelled' ? 'Cancelled' : 'Failed');
+  const steps = [];
+  for (const job of L.jobs || []) for (const st of job.steps || []) {
+    if (/^(Set up job|Complete job|Post |Run actions\/)/.test(st.name)) continue;
+    const state = stepState(st);
+    if (state === 'skipped') continue;
+    steps.push(h('div', { class: 'step ' + state },
+      h('span', { class: 'dot' }, state === 'done' ? icon('check') : state === 'failed' ? icon('x') : null), st.name));
+  }
+  const details = [];
+  if (L.inputs.source) details.push(clipName(L.inputs.source) + (L.inputs.start ? ` @ ${L.inputs.start}` : ''));
+  if (L.inputs.date) details.push(L.inputs.date);
+  if (L.inputs.reaction) details.push('reaction: ' + clipName(L.inputs.reaction));
+  if (L.inputs.dry_run === 'true') details.push('dry run');
+  const card = h('div', { class: 'card live ' + cls, style: { marginBottom: '4px' } },
+    h('div', { class: 'row wrap between' },
+      h('div', { class: 'row grow', style: { minWidth: '200px' } },
+        concl ? icon(concl === 'success' ? 'check' : 'alert') : h('span', { class: 'spin', style: { color: 'var(--run)' } }),
+        h('div', { class: 'grow' }, h('div', { style: { fontWeight: 650 } }, L.label, ' ', pill),
+          h('div', { class: 'small muted ellipsis' }, [dur(elapsed), ...details].join(' · ')))),
+      h('div', { class: 'row' },
+        run && ghHref(run.html_url) ? h('a', { class: 'btn sm', href: ghHref(run.html_url), target: '_blank', rel: 'noopener noreferrer' }, 'Logs', icon('ext')) : null,
+        L.done ? h('button', { class: 'btn sm ghost', onclick: () => { S.live = null; renderLive(); } }, 'Dismiss') : null)),
+    steps.length ? h('div', { class: 'steps' }, steps) : !run && !L.lost ? h('div', { class: 'small muted', style: { marginTop: '10px' } }, 'Waiting for GitHub to pick up the job… this usually takes 5–20 seconds.') : null,
+    (L.annots || []).slice(0, 4).map(a => h('div', { class: 'annot' }, icon(a.level === 'failure' ? 'alert' : 'info'), h('span', null, a.message))));
+  box.replaceChildren(card);
+}
+
+/* ----------------------------------------------------------------- overview */
+function statCard(label, iconName, value, sub, extra) {
+  return h('div', { class: 'card stat' }, h('div', { class: 'label' }, icon(iconName), label),
+    h('div', { class: 'value num' }, value), sub ? h('div', { class: 'sub' }, sub) : null, extra || null);
+}
+function runPill(run) {
+  if (!run) return h('span', { class: 'pill idle' }, 'No runs yet');
+  if (run.status !== 'completed') return h('span', { class: 'pill run' }, run.status === 'queued' ? 'Queued' : 'Running');
+  const map = { success: ['ok', 'Success'], failure: ['bad', 'Failed'], cancelled: ['idle', 'Cancelled'], skipped: ['idle', 'Skipped'], timed_out: ['bad', 'Timed out'] };
+  const [cls, text] = map[run.conclusion] || ['idle', run.conclusion || 'Done'];
+  return h('span', { class: 'pill ' + cls }, text);
+}
+function reelCard(day, reel) {
+  const img = h('img', { alt: '', loading: 'lazy', hidden: true });
+  if (reel.thumb) thumbUrl(reel.thumb).then(u => { if (u) { img.src = u; img.hidden = false; } });
+  const extra = /^extra_/.test(reel.name);
+  const link = driveHref(reel.link);
+  return h('div', { class: 'reel' },
+    h('div', { class: 'thumb' }, img, h('span', { class: 'badge' }, reel.name.replace('.mp4', '').replace('_', ' ')), icon('film')),
+    h('div', { class: 'meta' },
+      h('div', { class: 'name ellipsis', title: reel.source || '' }, reel.source ? clipName(reel.source) : 'Unknown source'),
+      h('div', { class: 'small muted num' }, reel.start != null ? `${hms(reel.start)}–${hms(reel.end)}` : '', extra ? ' · custom' : ''),
+      h('div', { class: 'small muted ellipsis', title: reel.reaction || '' }, reel.reaction ? 'Reaction: ' + clipName(reel.reaction) : ''),
+      link ? h('a', { class: 'link', href: link, target: '_blank', rel: 'noopener noreferrer', style: { marginTop: '6px' } }, 'Open in Drive', icon('ext')) : null));
+}
+function warningsBanners(view) {
+  const st = S.status;
+  const list = [...(st ? st.warnings || [] : [])];
+  if (S.workflowState && S.workflowState !== 'active') list.unshift('The daily workflow is disabled on GitHub. Enable it under Actions to run on schedule.');
+  if (S.cfgValues['run.paused'] === true) list.unshift('Daily reels are paused. Turn this off in Settings → Schedule.');
+  for (const w of list) view.append(h('div', { class: 'banner warn', style: { marginBottom: '10px' } }, icon('alert'), h('div', null, w)));
+}
+function renderOverview(view) {
+  const st = S.status, last = S.runs[0];
+  warningsBanners(view);
+  if (S.statusMissing) {
+    view.append(h('div', { class: 'banner info', style: { marginBottom: '14px' } }, icon('info'),
+      h('div', { class: 'grow' }, h('strong', null, 'No status yet. '), 'Run "Refresh status" once to load your videos, reactions and reels.'),
+      taskButton('refresh-status', {}, 'Refresh status', 'btn sm primary')));
+  }
+  const paused = S.cfgValues['run.paused'] === true;
+  const next = nextRunAt(S.sched);
+  const t = st ? st.totals : null;
+  const daysLeft = t ? t.days_left : null, low = (S.cfgValues['picker.low_stock_days'] ?? 7) || 7;
+  const meterCls = daysLeft == null ? '' : daysLeft < 3 ? 'bad' : daysLeft < low ? 'warn' : '';
+  const reactNext = st ? nextReactionLabel(st) : '–';
+  const grid = h('div', { class: 'grid stats' },
+    statCard('Next run', paused ? 'pause' : 'clock', paused ? 'Paused' : next ? fmtWhen(next) : '–',
+      S.sched ? `Daily at ${pad(S.sched.hour)}:${pad(S.sched.minute)} (${S.sched.tz.replace('_', ' ')})` : 'Schedule not found'),
+    statCard('Last run', 'play', last ? h('span', null, runPill(last)) : 'None yet',
+      last ? `${relTime(last.run_started_at || last.created_at)} · ${last.event === 'schedule' ? 'scheduled' : 'manual'}` : 'Start one from Make',
+      last && last.status === 'completed' && last.conclusion !== 'success' ? lastRunError(last) : null),
+    statCard('Fresh material', 'film', t ? `${t.clips_left} clips` : '–',
+      t ? `About ${daysLeft} day${daysLeft === 1 ? '' : 's'} at ${st.config.reels_per_day}/day` + (t.unanalysed_sources ? ` · ${t.unanalysed_sources} not analysed` : '') : '',
+      t ? h('div', { class: 'meter ' + meterCls }, h('i', { style: { width: `${Math.min(100, (daysLeft / Math.max(1, low * 2)) * 100)}%` } })) : null),
+    statCard('Reactions', 'user', t ? `${t.reactions} clip${t.reactions === 1 ? '' : 's'}` : '–', st ? reactNext : ''));
+  view.append(grid);
+
+  view.append(h('div', { class: 'section-head' }, h('h2', null, 'Quick actions')));
+  view.append(h('div', { class: 'row wrap' },
+    taskButton('make-reels', {}, "Make today's reels", 'btn primary', 'play'),
+    h('button', { class: 'btn', onclick: () => gotoTab('make') }, icon('wand'), 'Custom reel'),
+    taskButton('refresh-status', {}, 'Refresh status', 'btn', 'refresh'),
+    st && st.storage && driveHref(st.storage.links.root) ? h('a', { class: 'btn ghost', href: driveHref(st.storage.links.root), target: '_blank', rel: 'noopener noreferrer' }, icon('folder'), 'Open Drive folder') : null));
+
+  const days = st ? st.days || [] : [];
+  const today = todayIn(tz());
+  const todayDay = days.find(d => d.date === today);
+  view.append(h('div', { class: 'section-head' }, h('h2', null, "Today's reels"),
+    todayDay && driveHref(todayDay.link) ? h('a', { class: 'link', href: driveHref(todayDay.link), target: '_blank', rel: 'noopener noreferrer' }, 'Folder', icon('ext')) : h('span', { class: 'small muted' }, today)));
+  if (todayDay && todayDay.reels.length) view.append(h('div', { class: 'reels' }, todayDay.reels.map(r => reelCard(todayDay, r))));
+  else view.append(h('div', { class: 'empty' }, h('h3', null, 'No reels for today yet'),
+    h('div', { class: 'small' }, paused ? 'Daily reels are paused.' : next ? `The next automatic run is ${fmtWhen(next).toLowerCase()}.` : ''),
+    h('div', { style: { marginTop: '14px' } }, taskButton('make-reels', {}, 'Make them now', 'btn primary sm', 'play'))));
+
+  const earlier = days.filter(d => d.date !== today).slice(0, 6);
+  if (earlier.length) {
+    view.append(h('div', { class: 'section-head' }, h('h2', null, 'Earlier')));
+    for (const d of earlier) {
+      view.append(h('div', { class: 'row between', style: { margin: '14px 0 8px' } },
+        h('h3', null, new Date(d.date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })),
+        driveHref(d.link) ? h('a', { class: 'link', href: driveHref(d.link), target: '_blank', rel: 'noopener noreferrer' }, 'Folder', icon('ext')) : null));
+      view.append(h('div', { class: 'reels' }, d.reels.map(r => reelCard(d, r))));
+    }
+  }
+}
+function lastRunError(run) {
+  const box = h('div', { class: 'small', style: { marginTop: '10px', color: 'var(--bad)' } });
+  annotationsFor(run).then(list => {
+    const a = list.find(x => x.level === 'failure') || list[0];
+    box.textContent = a ? a.message : 'Open Runs for details.';
+  });
+  return box;
+}
+function nextReactionLabel(st) {
+  const nxt = (st.reactions || []).find(r => r.next === 1);
+  if (nxt) return 'Next: ' + clipName(nxt.name);
+  if (st.rotation && st.rotation.new_round) return 'Next reel starts a new shuffled round';
+  return '';
+}
+function gotoTab(id) { const b = $('#tab-' + id); if (b) b.click(); }
+function taskButton(task, inputs, label, cls = 'btn', iconName) {
+  const key = 'task:' + task + ':' + label;
+  const b = h('button', { class: cls, disabled: S.busy.has(key) || (S.live && !S.live.done) ? true : null, onclick: async () => {
+    if (S.live && !S.live.done) return;
+    S.busy.add(key); b.disabled = true; b.replaceChildren(h('span', { class: 'spin' }), label);
+    try { await dispatch(task, typeof inputs === 'function' ? inputs() : inputs); }
+    catch (e) { onError(e); }
+    finally { S.busy.delete(key); renderView(true); }
+  } }, iconName ? icon(iconName) : null, label);
+  if (S.live && !S.live.done) b.title = 'A job is already running';
+  return b;
+}
+
+/* --------------------------------------------------------------------- make */
+function reactionOptions(st, autoLabel) {
+  return [h('option', { value: '' }, autoLabel),
+    ...(st ? st.reactions : []).map(r => h('option', { value: r.name }, clipName(r.name)))];
+}
+function renderMake(view) {
+  const st = S.status, M = S.make, today = todayIn(tz());
+  if (!M.daily.date) M.daily.date = today;
+  if (!M.custom.date) M.custom.date = today;
+  if (!M.custom.source && st && st.sources.length) M.custom.source = (st.sources.find(s => !s.exhausted) || st.sources[0]).name;
+  const busy = S.live && !S.live.done;
+  if (busy) view.append(h('div', { class: 'banner info', style: { marginBottom: '14px' } }, icon('info'), h('div', null, 'A job is running. You can start the next one when it finishes.')));
+
+  /* daily */
+  const D = M.daily;
+  const perDay = (st && st.config.reels_per_day) || S.cfgValues['run.reels_per_day'] || 2;
+  const existing = st ? ((st.days || []).find(d => d.date === D.date) || { reels: [] }).reels.filter(r => r.name.startsWith('reel_')) : [];
+  const count = Number(D.count || perDay);
+  const clash = existing.filter(r => Number(r.name.match(/\d+/)) <= count);
+  const dailyNote = h('div', { class: 'small muted' });
+  const updateNote = () => {
+    dailyNote.textContent = clash.length && !D.force
+      ? `${clash.map(r => r.name.replace('.mp4', '')).join(' and ')} already exist${clash.length === 1 ? 's' : ''} for this date and will be skipped. Turn on "Re-make" to replace ${clash.length === 1 ? 'it' : 'them'}.`
+      : D.dry ? 'Dry run: shows the picks in the run summary without making anything.' : '';
+  };
+  updateNote();
+  const dateIn = h('input', { class: 'input', type: 'date', value: D.date, onchange: e => { D.date = e.target.value; renderView(true); } });
+  const countIn = h('input', { class: 'input num', type: 'number', min: 1, max: 20, placeholder: String(perDay), value: D.count, oninput: e => { D.count = e.target.value; } , onchange: () => renderView(true) });
+  const reactSel = h('select', { class: 'input', onchange: e => { D.reaction = e.target.value; } }, reactionOptions(st, 'Automatic rotation'));
+  reactSel.value = D.reaction;
+  view.append(h('div', { class: 'card' },
+    h('div', { class: 'row between wrap', style: { marginBottom: '14px' } },
+      h('div', null, h('h2', null, 'Daily reels'), h('div', { class: 'small muted' }, 'Same as the automatic morning run, on demand.'))),
+    h('div', { class: 'form-grid' },
+      h('div', { class: 'field' }, h('label', null, 'Date folder'), dateIn),
+      h('div', { class: 'field' }, h('label', null, 'How many'), countIn),
+      h('div', { class: 'field' }, h('label', null, 'Reaction'), reactSel)),
+    h('div', { class: 'row wrap', style: { gap: '22px', margin: '16px 0 4px' } },
+      h('label', { class: 'switch' }, h('input', { type: 'checkbox', checked: D.force, onchange: e => { D.force = e.target.checked; updateNote(); } }), 'Re-make if they exist'),
+      h('label', { class: 'switch' }, h('input', { type: 'checkbox', checked: D.dry, onchange: e => { D.dry = e.target.checked; updateNote(); } }), 'Dry run')),
+    dailyNote,
+    h('div', { class: 'row', style: { marginTop: '16px' } },
+      taskButton('make-reels', () => ({ date: D.date === today ? '' : D.date, count: D.count, reaction: D.reaction, force: D.force, dry_run: D.dry }), 'Make reels', 'btn primary', 'play'))));
+
+  /* custom */
+  view.append(h('div', { class: 'section-head' }, h('h2', null, 'Custom reel')));
+  view.append(customCard(st, today));
+
+  /* maintenance */
+  view.append(h('div', { class: 'section-head' }, h('h2', null, 'Maintenance')));
+  view.append(h('div', { class: 'grid', style: { gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))' } },
+    h('div', { class: 'card flat stack' }, h('div', { class: 'row' }, icon('refresh'), h('h3', null, 'Refresh status')),
+      h('div', { class: 'small muted' }, 'Reads your Drive folders, measures new videos and updates every number on this page. Makes no reels.'),
+      taskButton('refresh-status', {}, 'Refresh status', 'btn')),
+    h('div', { class: 'card flat stack' }, h('div', { class: 'row' }, icon('stethoscope'), h('h3', null, 'Check setup')),
+      h('div', { class: 'small muted' }, 'Checks FFmpeg, your settings, the Google Drive connection and the folders. Makes no reels.'),
+      taskButton('check-setup', {}, 'Check setup', 'btn'))));
+}
+function customCard(st, today) {
+  const C = S.make.custom, perReel = (st && st.config.duration) || 10;
+  if (!st || !st.sources.length) {
+    return h('div', { class: 'empty' }, h('h3', null, 'No videos to pick from yet'),
+      h('div', { class: 'small' }, S.statusMissing ? 'Run "Refresh status" first.' : 'Add long videos to your Drive folder, then refresh status.'));
+  }
+  const src = st.sources.find(s => s.name === C.source) || st.sources[0];
+  const card = h('div', { class: 'card' });
+  const draw = () => {
+    const dur = src.duration;
+    const start = parseHms(C.start);
+    let msg = null, ok = false;
+    if (C.start.trim() === '') { msg = 'Leave empty to pick a free moment automatically.'; ok = true; }
+    else if (Number.isNaN(start)) msg = 'Use seconds (76) or minutes:seconds (1:16).';
+    else if (dur != null && dur >= perReel && start > dur - perReel + 0.05) msg = `Too late: the latest start is ${hms(dur - perReel)}.`;
+    else if (dur != null && src.free && !(dur < perReel) && !src.free.some(([a, b]) => start >= a - 1e-6 && start <= b + 1e-6))
+      msg = 'Overlaps a moment already used.' + (src.free.length ? ` Free starts: ${src.free.map(([a, b]) => a === b ? hms(a) : `${hms(a)}–${hms(b)}`).join(', ')}` : ' No free moments left.');
+    else { ok = true; msg = `Clip ${hms(start)}–${hms(start + perReel)}` + (dur == null ? ' (checked when the reel is made)' : ' is free.'); }
+
+    const srcSel = h('select', { class: 'input', onchange: e => { C.source = e.target.value; C.start = ''; renderView(true); } },
+      st.sources.map(s => h('option', { value: s.name }, clipName(s.name) + (s.exhausted ? ' (used up)' : s.clips_left != null ? ` · ${s.clips_left} left` : ''))));
+    srcSel.value = src.name;
+    const startIn = h('input', { class: 'input num' + (ok ? '' : ' bad'), placeholder: 'e.g. 1:16', value: C.start, inputmode: 'decimal',
+      oninput: e => { C.start = e.target.value; const pos = e.target.selectionStart; draw(); const n = $('#c-start'); if (n) { n.focus(); n.setSelectionRange(pos, pos); } } });
+    startIn.id = 'c-start';
+    const reactSel = h('select', { class: 'input', onchange: e => { C.reaction = e.target.value; } }, reactionOptions(st, 'Next in rotation'));
+    reactSel.value = C.reaction;
+
+    let timeline = h('div', { class: 'small muted' }, 'Length unknown until the video is analysed. Run "Refresh status" to see the free moments.');
+    if (dur != null && dur > 0) {
+      const tl = h('div', { class: 'tl', role: 'img', 'aria-label': `Timeline of ${clipName(src.name)}: used moments in red`,
+        onclick: e => {
+          const r = tl.getBoundingClientRect();
+          let t = ((e.clientX - r.left) / r.width) * dur - perReel / 2;
+          t = Math.max(0, Math.min(dur - perReel, t));
+          C.start = hms(Math.round(t)); draw();
+        } });
+      for (const [a, b] of src.segments || []) tl.append(h('div', { class: 'used', title: `Used ${hms(a)}–${hms(b)}`, style: { left: `${(a / dur) * 100}%`, width: `${Math.max(0.6, ((b - a) / dur) * 100)}%` } }));
+      if (C.start.trim() && !Number.isNaN(start) && start <= dur)
+        tl.append(h('div', { class: 'sel' + (ok ? '' : ' bad'), style: { left: `${(start / dur) * 100}%`, width: `${Math.max(1, (Math.min(perReel, dur - start) / dur) * 100)}%` } }));
+      timeline = h('div', null, tl,
+        h('div', { class: 'tl-scale' }, h('span', null, '0:00'), h('span', null, hms(dur / 2)), h('span', null, hms(dur))),
+        h('div', { class: 'legend', style: { marginTop: '8px' } },
+          h('span', null, h('i', { style: { background: 'var(--used)' } }), 'Already used'),
+          h('span', null, h('i', { style: { background: 'var(--accent)' } }), 'Your pick'),
+          h('span', null, 'Tap the bar to choose a moment')));
+    }
+    card.replaceChildren(
+      h('div', { class: 'small muted', style: { marginBottom: '14px' } }, 'Pick the exact moment yourself. It is saved as an extra reel next to the daily ones and never reused.'),
+      h('div', { class: 'form-grid' },
+        h('div', { class: 'field', style: { gridColumn: '1/-1' } }, h('label', null, 'Video'), srcSel)),
+      h('div', { style: { margin: '14px 0' } }, timeline),
+      h('div', { class: 'form-grid' },
+        h('div', { class: 'field' }, h('label', { for: 'c-start' }, 'Start time'), startIn, h('div', { class: ok ? 'hint' : 'err' }, msg)),
+        h('div', { class: 'field' }, h('label', null, 'Reaction'), reactSel),
+        h('div', { class: 'field' }, h('label', null, 'Date folder'), h('input', { class: 'input', type: 'date', value: C.date, onchange: e => { C.date = e.target.value; } }))),
+      h('div', { class: 'row wrap', style: { marginTop: '16px', gap: '16px' } },
+        (() => { const b = taskButton('custom-reel', () => ({ source: src.name, start: C.start, reaction: C.reaction, date: C.date === today ? '' : C.date, dry_run: C.dry }), 'Make custom reel', 'btn primary', 'wand'); if (!ok || src.exhausted) b.disabled = true; return b; })(),
+        h('label', { class: 'switch' }, h('input', { type: 'checkbox', checked: C.dry, onchange: e => { C.dry = e.target.checked; } }), 'Dry run')));
+  };
+  draw();
+  return card;
+}
+
+/* ------------------------------------------------------------------ library */
+function renderLibrary(view) {
+  const st = S.status;
+  if (!st) { view.append(h('div', { class: 'empty' }, h('h3', null, 'Nothing loaded yet'), h('div', { class: 'small' }, 'Run "Refresh status" from Make to load your library.'), h('div', { style: { marginTop: '14px' } }, taskButton('refresh-status', {}, 'Refresh status', 'btn primary sm')))); return; }
+  const perReel = st.config.duration || 10, links = st.storage.links || {};
+  view.append(h('div', { class: 'section-head' }, h('h2', null, `Long videos (${st.sources.length})`),
+    driveHref(links.sources) ? h('a', { class: 'link', href: driveHref(links.sources), target: '_blank', rel: 'noopener noreferrer' }, icon('folder'), st.storage.folders.sources, icon('ext')) : null));
+  if (!st.sources.length) view.append(h('div', { class: 'empty' }, 'No long videos yet. Upload some to ', st.storage.folders.sources, '.'));
+  else view.append(h('div', { class: 'card' }, h('div', { class: 'list' }, st.sources.map(s => {
+    const d = s.duration;
+    const bar = d ? h('div', { class: 'tl mini', style: { marginTop: '8px' } }, (s.segments || []).map(([a, b]) => h('div', { class: 'used', style: { left: `${(a / d) * 100}%`, width: `${Math.max(0.8, ((b - a) / d) * 100)}%` } }))) : null;
+    return h('div', { class: 'item', style: { alignItems: 'flex-start' } },
+      h('div', { class: 'grow' },
+        h('div', { class: 't ellipsis', title: s.name }, clipName(s.name)),
+        h('div', { class: 'small muted num' }, [d ? hms(d) : 'not analysed', `${s.uses} used`, s.exhausted ? 'used up' : s.clips_left != null ? `~${s.clips_left} clips left` : null, bytes(s.size)].filter(Boolean).join(' · ')),
+        bar),
+      h('div', { class: 'row', style: { flex: 'none' } },
+        !s.exhausted && d ? h('button', { class: 'btn sm', onclick: () => { S.make.custom.source = s.name; S.make.custom.start = ''; gotoTab('make'); } }, icon('wand'), h('span', { class: 'hide-sm' }, 'Custom')) : null,
+        driveHref(s.link) ? h('a', { class: 'iconbtn', href: driveHref(s.link), target: '_blank', rel: 'noopener noreferrer', title: 'Open in Drive', 'aria-label': 'Open in Drive' }, icon('ext')) : null));
+  }))));
+
+  view.append(h('div', { class: 'section-head' }, h('h2', null, `Reaction clips (${st.reactions.length})`),
+    driveHref(links.reactions) ? h('a', { class: 'link', href: driveHref(links.reactions), target: '_blank', rel: 'noopener noreferrer' }, icon('folder'), st.storage.folders.reactions, icon('ext')) : null));
+  if (st.rotation && st.rotation.new_round && st.reactions.length) view.append(h('div', { class: 'small muted', style: { margin: '-4px 0 10px' } }, 'Every clip has been used this round. The next reel starts a new shuffled round' + (st.reactions.length > 1 && st.rotation.last ? `, not with ${clipName(st.rotation.last)}.` : '.')));
+  if (!st.reactions.length) view.append(h('div', { class: 'empty' }, 'No reaction clips yet.'));
+  else view.append(h('div', { class: 'card' }, h('div', { class: 'list' }, st.reactions.map(r => h('div', { class: 'item' },
+    r.next ? h('span', { class: 'badge-n', title: 'Position in the rotation' }, '#' + r.next) : h('span', { class: 'badge-n', style: { background: 'var(--surface-2)', color: 'var(--faint)' }, title: 'Used this round' }, '–'),
+    h('div', { class: 'grow' }, h('div', { class: 't ellipsis', title: r.name }, clipName(r.name)),
+      h('div', { class: 'small muted' }, [`used ${r.uses}×`, r.next === 1 ? 'up next' : r.next ? `in ${r.next} reels` : 'used this round', bytes(r.size)].join(' · '))),
+    driveHref(r.link) ? h('a', { class: 'iconbtn', href: driveHref(r.link), target: '_blank', rel: 'noopener noreferrer', title: 'Open in Drive', 'aria-label': 'Open in Drive' }, icon('ext')) : null)))));
+
+  view.append(h('div', { class: 'section-head' }, h('h2', null, 'History'), h('span', { class: 'small muted' }, `${st.totals.reels_made} reels made`)));
+  if (!st.history.length) view.append(h('div', { class: 'empty' }, 'No reels made yet.'));
+  else view.append(h('div', { class: 'card' }, h('div', { class: 'list' }, st.history.slice(0, 40).map(x => {
+    const img = h('img', { alt: '', hidden: true });
+    if (x.thumb) thumbUrl(x.thumb).then(u => { if (u) { img.src = u; img.hidden = false; } });
+    return h('div', { class: 'item' }, h('div', { class: 'mini-thumb' }, img),
+      h('div', { class: 'grow' },
+        h('div', { class: 't' }, `${x.date} · ${String(x.reel).replace('.mp4', '').replace('_', ' ')}`),
+        h('div', { class: 'small muted ellipsis', title: x.source }, `${clipName(x.source)} @ ${hms(x.start)}–${hms(x.end)}`),
+        h('div', { class: 'small muted ellipsis', title: x.reaction }, 'Reaction: ' + clipName(x.reaction))));
+  }))));
+}
+
+/* --------------------------------------------------------------------- runs */
+function renderRuns(view) {
+  view.append(h('div', { class: 'section-head' }, h('h2', null, 'Recent runs'),
+    S.repo ? h('a', { class: 'link', href: ghHref(`${S.repo.html_url}/actions/workflows/${WORKFLOW}`) || '#', target: '_blank', rel: 'noopener noreferrer' }, 'All on GitHub', icon('ext')) : null));
+  if (!S.runs.length) { view.append(h('div', { class: 'empty' }, h('h3', null, 'No runs yet'), h('div', { class: 'small' }, 'Start one from Make, or wait for the morning run.'))); return; }
+  view.append(h('div', { class: 'card' }, h('div', { class: 'list' }, S.runs.map(run => {
+    const started = run.run_started_at || run.created_at;
+    const length = run.status === 'completed' ? dur(new Date(run.updated_at) - new Date(started)) : dur(Date.now() - new Date(started));
+    const open = S.openRun === run.id;
+    const detail = h('div', { style: { width: '100%' } });
+    if (open) {
+      detail.append(h('div', { class: 'small muted' }, 'Loading steps…'));
+      jobsFor(run.id, run.status !== 'completed').then(async jobs => {
+        const steps = [];
+        for (const job of jobs) for (const st of job.steps || []) {
+          if (/^(Set up job|Complete job|Post |Run actions\/)/.test(st.name)) continue;
+          const s = stepState(st); if (s === 'skipped') continue;
+          steps.push(h('div', { class: 'step ' + s }, h('span', { class: 'dot' }, s === 'done' ? icon('check') : s === 'failed' ? icon('x') : null), st.name));
+        }
+        const annots = run.status === 'completed' ? await annotationsFor(run) : [];
+        detail.replaceChildren(h('div', { class: 'steps', style: { marginTop: '4px' } }, steps),
+          ...annots.slice(0, 5).map(a => h('div', { class: 'annot' }, icon(a.level === 'failure' ? 'alert' : 'info'), h('span', null, a.message))));
+      }).catch(() => detail.replaceChildren(h('div', { class: 'small muted' }, 'Could not load steps.')));
+    }
+    return h('div', { class: 'item', style: { flexWrap: 'wrap', cursor: 'pointer' }, onclick: e => { if (e.target.closest('a')) return; S.openRun = open ? null : run.id; renderView(true); } },
+      runPill(run),
+      h('div', { class: 'grow' }, h('div', { class: 't ellipsis' }, run.display_title || run.name),
+        h('div', { class: 'small muted' }, [run.event === 'schedule' ? 'Scheduled' : 'Manual', relTime(started), length].join(' · '))),
+      ghHref(run.html_url) ? h('a', { class: 'iconbtn', href: ghHref(run.html_url), target: '_blank', rel: 'noopener noreferrer', title: 'Logs on GitHub', 'aria-label': 'Logs on GitHub' }, icon('ext')) : null,
+      icon('down', open ? 'rot' : ''),
+      open ? detail : null);
+  }))));
+}
+
+/* ----------------------------------------------------------------- settings */
+function cfgValue(section, key) {
+  const k = `${section}.${key}`;
+  return k in S.edits ? S.edits[k] : S.cfgValues[k];
+}
+function fieldControl(section, f) {
+  const k = `${section}.${f.key}`;
+  const v = cfgValue(section, f.key);
+  const err = h('div', { class: 'err' });
+  const set = val => {
+    const numeric = f.type === 'int' || f.type === 'float';
+    const same = numeric ? val !== '' && Number(val) === Number(S.cfgValues[k]) : val === S.cfgValues[k];
+    if (same) delete S.edits[k]; else S.edits[k] = val;
+    err.textContent = fieldError(f, val);
+    updateSaveBar();
+  };
+  let control;
+  if (f.type === 'bool') {
+    control = h('label', { class: 'switch' }, h('input', { type: 'checkbox', checked: !!v, onchange: e => set(e.target.checked) }), f.label);
+    return h('div', { class: 'field', style: { justifyContent: 'flex-end' } }, control, f.hint ? h('div', { class: 'hint' }, f.hint) : null);
+  }
+  if (f.type === 'enum' && f.options.length <= 3) {
+    const seg = h('div', { class: 'seg', role: 'group', 'aria-label': f.label });
+    const paint = cur => { for (const b of seg.children) b.setAttribute('aria-pressed', String(b.dataset.v === cur)); };
+    for (const [val, label] of f.options) seg.append(h('button', { type: 'button', dataset: { v: val }, onclick: () => { set(val); paint(val); } }, label));
+    paint(v);
+    control = seg;
+  } else if (f.type === 'enum') {
+    control = h('select', { class: 'input', onchange: e => set(e.target.value) }, f.options.map(([val, label]) => h('option', { value: val }, label)));
+    control.value = v;
+  } else if (f.slider) {
+    const out = h('output', null, f.show ? f.show(Number(v)) : v);
+    control = h('div', { class: 'range' }, h('input', { type: 'range', min: f.min, max: f.max, step: f.step, value: v,
+      oninput: e => { const n = Number(e.target.value); out.textContent = f.show ? f.show(n) : n; set(n); } }), out);
+  } else if (f.type === 'int' || f.type === 'float') {
+    control = h('input', { class: 'input num', type: 'number', min: f.min, max: f.max, step: f.type === 'int' ? 1 : (f.step || 'any'), value: v ?? '',
+      oninput: e => set(e.target.value === '' ? '' : Number(e.target.value)) });
+  } else {
+    control = h('input', { class: 'input', type: 'text', value: v ?? '', placeholder: f.placeholder || '', maxlength: f.max || null, spellcheck: 'false',
+      oninput: e => set(e.target.value) });
+  }
+  return h('div', { class: 'field' }, h('div', { class: 'lbl' }, f.label), control, f.hint ? h('div', { class: 'hint' }, f.hint) : null, err);
+}
+function updateSaveBar() {
+  const bar = $('#savebar'); if (!bar) return;
+  const n = Object.keys(S.edits).length;
+  const errors = SCHEMA.flatMap(sec => sec.fields.map(f => [sec.section, f])).filter(([s, f]) => `${s}.${f.key}` in S.edits && fieldError(f, S.edits[`${s}.${f.key}`]));
+  bar.style.display = n === 0 ? 'none' : 'flex';
+  $('#save-count').textContent = errors.length ? `${errors.length} value${errors.length === 1 ? '' : 's'} need fixing` : `${n} unsaved change${n === 1 ? '' : 's'}`;
+  $('#save-btn').disabled = errors.length > 0;
+}
+async function saveConfig(changes, message) {
+  let text = S.cfgText;
+  for (const [k, val] of Object.entries(changes)) {
+    const [section, key] = k.split('.');
+    const f = (SCHEMA.find(s => s.section === section) || { fields: [] }).fields.find(x => x.key === key) || { type: typeof val === 'boolean' ? 'bool' : 'str' };
+    text = tomlSet(text, section, key, val, f.type);
+  }
+  try { await putFile('config.toml', text, S.cfgSha, message); }
+  catch (e) {
+    if (e.status === 409) { await loadConfig(); throw new ApiError('Settings changed on GitHub meanwhile. They were reloaded - please make your change again.', 409); }
+    if (e.status === 403 || e.status === 404) throw new ApiError('Your token cannot save files. It needs Contents: Read and write.', e.status);
+    throw e;
+  }
+  await loadConfig();
+}
+function renderSettings(view) {
+  if (!S.cfgText) { view.append(h('div', { class: 'empty' }, h('h3', null, 'config.toml not found'), h('div', { class: 'small' }, 'Push the latest project code to your repository.'))); return; }
+  view.append(scheduleCard());
+  for (const sec of SCHEMA) {
+    const basic = sec.fields.filter(f => !f.adv && !sec.adv), adv = sec.fields.filter(f => f.adv || sec.adv);
+    const body = h('div', { class: 'card' },
+      h('div', { style: { marginBottom: '14px' } }, h('h2', null, sec.title), sec.blurb ? h('div', { class: 'small muted' }, sec.blurb) : null),
+      basic.length ? h('div', { class: 'form-grid' }, basic.map(f => fieldControl(sec.section, f))) : null,
+      adv.length ? h('details', { class: 'adv', style: { marginTop: basic.length ? '18px' : 0 } },
+        h('summary', null, sec.adv ? 'Show storage settings' : 'Advanced', icon('down')),
+        h('div', { class: 'form-grid', style: { marginTop: '14px' } }, adv.map(f => fieldControl(sec.section, f)))) : null);
+    view.append(h('div', { style: { marginTop: '14px' } }, body));
+  }
+  view.append(connectionCard());
+  const bar = h('div', { id: 'savebar', class: 'card', style: { position: 'sticky', bottom: '12px', marginTop: '16px', display: 'none', alignItems: 'center', gap: '12px', flexWrap: 'wrap', zIndex: 5 } },
+    h('span', { id: 'save-count', class: 'grow', style: { fontWeight: 600 } }),
+    h('button', { class: 'btn ghost', onclick: () => { S.edits = {}; renderView(true); } }, 'Discard'),
+    h('button', { class: 'btn primary', id: 'save-btn', onclick: async e => {
+      const b = e.currentTarget; b.disabled = true; b.replaceChildren(h('span', { class: 'spin' }), 'Saving…');
+      try {
+        const keys = Object.keys(S.edits);
+        await saveConfig(S.edits, `Dashboard: update ${keys.map(k => k.split('.')[1]).slice(0, 4).join(', ')}${keys.length > 4 ? '…' : ''}`);
+        S.edits = {}; toast('Settings saved - used from the next run'); document.activeElement && document.activeElement.blur(); renderView(true);
+      } catch (err) { onError(err); b.disabled = false; b.replaceChildren('Save changes'); }
+    } }, 'Save changes'));
+  view.append(bar);
+  updateSaveBar();
+}
+function scheduleCard() {
+  const sc = S.sched;
+  if (!S.schedEdit) S.schedEdit = { time: sc ? `${pad(sc.hour)}:${pad(sc.minute)}` : '06:23', paused: S.cfgValues['run.paused'] === true };
+  const E = S.schedEdit;
+  const tzName = sc ? sc.tz : 'Europe/Amsterdam';
+  const msg = h('div', { class: 'hint' });
+  const next = nextRunAt(sc);
+  msg.textContent = !sc ? 'Could not read the schedule from daily.yml.' : `Next run: ${next ? fmtWhen(next) : '–'}. GitHub can start scheduled runs 5–30 minutes late.`;
+  const save = h('button', { class: 'btn primary', onclick: async () => {
+    const [hh, mm] = E.time.split(':').map(Number);
+    if (!(hh >= 0 && hh < 24 && mm >= 0 && mm < 60)) { toast('Pick a valid time', true); return; }
+    save.disabled = true; save.replaceChildren(h('span', { class: 'spin' }), 'Saving…');
+    try {
+      const changedTime = sc && (hh !== sc.hour || mm !== sc.minute);
+      const changedPause = E.paused !== (S.cfgValues['run.paused'] === true);
+      if (!changedTime && !changedPause) { toast('Nothing to change'); return; }
+      if (changedPause) await saveConfig({ 'run.paused': E.paused }, E.paused ? 'Dashboard: pause daily reels' : 'Dashboard: resume daily reels');
+      if (changedTime) {
+        const text = setSchedule(S.wf, hh, mm, tzName);
+        try { await putFile(`.github/workflows/${WORKFLOW}`, text, S.wfSha, `Dashboard: daily reels at ${E.time} ${tzName}`); }
+        catch (e) {
+          if (e.status === 403 || e.status === 404 || e.status === 422) throw new ApiError('Changing the time needs a token with the Workflows: Read and write permission.', e.status);
+          if (e.status === 409) { await loadWorkflow(); throw new ApiError('The workflow changed meanwhile - reloaded. Try again.', 409); }
+          throw e;
+        }
+        await loadWorkflow();
+      }
+      toast(changedTime ? `Daily reels now at ${E.time}` : E.paused ? 'Daily reels paused' : 'Daily reels resumed');
+      S.schedEdit = null; document.activeElement && document.activeElement.blur(); renderView(true);
+    } catch (err) { onError(err); }
+    finally { save.disabled = false; save.replaceChildren('Save schedule'); }
+  } }, 'Save schedule');
+  return h('div', { class: 'card' },
+    h('div', { style: { marginBottom: '14px' } }, h('h2', null, 'Schedule'), h('div', { class: 'small muted' }, 'When the automatic daily run happens.')),
+    h('div', { class: 'form-grid' },
+      h('div', { class: 'field' }, h('label', { for: 's-time' }, `Daily at (${tzName.replace('_', ' ')})`),
+        h('input', { class: 'input num', id: 's-time', type: 'time', value: E.time, oninput: e => { E.time = e.target.value; } })),
+      h('div', { class: 'field', style: { justifyContent: 'flex-end' } },
+        h('label', { class: 'switch' }, h('input', { type: 'checkbox', checked: E.paused, onchange: e => { E.paused = e.target.checked; } }), 'Pause daily reels'),
+        h('div', { class: 'hint' }, 'Manual jobs from this page still work.'))),
+    h('div', { style: { marginTop: '12px' } }, msg),
+    h('div', { class: 'row', style: { marginTop: '14px' } }, save));
+}
+function connectionCard() {
+  const tok = S.conn.token;
+  const kind = tok.startsWith('github_pat_') ? 'Fine-grained token' : tok.startsWith('ghp_') ? 'Classic token (consider a fine-grained one)' : 'Token';
+  return h('div', { class: 'card', style: { marginTop: '14px' } },
+    h('div', { style: { marginBottom: '12px' } }, h('h2', null, 'Connection')),
+    h('div', { class: 'list' },
+      h('div', { class: 'item' }, icon('github'), h('div', { class: 'grow' }, h('div', { class: 't' }, S.repo.full_name), h('div', { class: 'small muted' }, `${S.repo.private ? 'Private' : 'Public'} · branch ${S.repo.default_branch}`))),
+      h('div', { class: 'item' }, icon('key'), h('div', { class: 'grow' }, h('div', { class: 't' }, kind), h('div', { class: 'small muted mono' }, tok.slice(0, 15) + '…' + tok.slice(-4))),
+        h('a', { class: 'btn sm', href: 'https://github.com/settings/personal-access-tokens', target: '_blank', rel: 'noopener noreferrer' }, 'Manage', icon('ext')))),
+    h('div', { class: 'row', style: { marginTop: '12px' } },
+      h('button', { class: 'btn', onclick: () => { if (confirm('Disconnect and forget the token on this device?')) { clearConn(); S.conn = null; S.repo = null; renderConnect(); } } }, icon('out'), 'Disconnect')));
+}
+
+/* ====================================================================== start */
+(async function start() {
+  const conn = loadConn();
+  if (!conn) { renderConnect(); return; }
+  try { await connect(conn); }
+  catch (e) { renderConnect(e.message); }
+})();
+</script>
+</body>
+</html>
