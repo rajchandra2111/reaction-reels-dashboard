@@ -80,7 +80,7 @@ h2{font-size:17px;font-weight:650}h3{font-size:15px;font-weight:650}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
 .card.flat{box-shadow:none}
 .grid{display:grid;gap:14px}
-.stats{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+.stats{grid-template-columns:repeat(auto-fit,minmax(196px,1fr))}
 .stat .label{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px}
 .stat .value{font-size:22px;font-weight:650;letter-spacing:-.02em;margin-top:6px;line-height:1.25}
 .stat .sub{font-size:13px;color:var(--muted);margin-top:4px}
@@ -210,6 +210,22 @@ details.adv[open]>summary svg,svg.i.rot{transform:rotate(180deg)}
 .tl .pk{position:absolute;top:50%;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;box-shadow:0 0 0 2px var(--surface-2);pointer-events:none}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 
+/* ---- publishing */
+textarea.input{min-height:110px;resize:vertical;line-height:1.45;font-size:14px}
+.pub-head{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.yt-mark{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:#ff0033;color:#fff;flex:none}
+.yt-mark svg{width:20px;height:20px}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:16px}
+.kv>div{background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:10px 12px;min-width:0}
+.kv .k{font-size:12.5px;color:var(--muted)}.kv .v{font-weight:650;margin-top:2px}
+.pub-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.editor{margin-top:12px;padding:14px;border:1px solid var(--border-strong);border-radius:12px;background:var(--surface-2);display:grid;gap:12px}
+.setup ol{margin:10px 0 0;padding-left:20px}.setup li{margin:8px 0}
+.code{display:flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:4px 4px 4px 10px;margin-top:6px;min-width:0}
+.code code{font-family:var(--mono);font-size:12.5px;white-space:nowrap;overflow-x:auto;min-width:0;flex:1;padding:6px 0}
+.code .iconbtn{flex:none}
+.ytline{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px}
+
 @media (max-width:640px){
   .stats{grid-template-columns:1fr 1fr;gap:10px}
   .stat{padding:14px}.stat .value{font-size:18px}
@@ -282,6 +298,12 @@ const ICONS = {
   github: 'M9 19c-4 1.3-4-2-6-2.5M15 21v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6 0 0 0-1.3-3.2 4.2 4.2 0 0 0-.1-3.2s-1-.3-3.4 1.3a11.6 11.6 0 0 0-6 0C6.8 2.8 5.8 3.1 5.8 3.1a4.2 4.2 0 0 0-.1 3.2A4.6 4.6 0 0 0 4.4 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21',
   key: 'M14.5 4a5.5 5.5 0 1 0 1.9 10.7L18 16.3V19h2.7v-2.7H23v-2l-5.8-5.8A5.5 5.5 0 0 0 14.5 4zM15 8.5h.1',
   user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4.5 20a7.5 7.5 0 0 1 15 0',
+  yt: 'M3 8.5A3.5 3.5 0 0 1 6.5 5h11A3.5 3.5 0 0 1 21 8.5v7a3.5 3.5 0 0 1-3.5 3.5h-11A3.5 3.5 0 0 1 3 15.5zM10 9.5v5l4.5-2.5z',
+  edit: 'M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4',
+  send: 'M4 12l16-8-6 16-2.5-6.5zM11.5 13.5L20 4',
+  skip: 'M5 6l7 6-7 6zM13 6l7 6-7 6z',
+  copy: 'M9 9h10v11H9zM5 15V4h10',
+  cal: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',
 };
 function icon(name, extra = '') {
   const ns = 'http://www.w3.org/2000/svg';
@@ -342,6 +364,7 @@ function safeHref(url, hosts) {
 }
 const driveHref = u => safeHref(u, ['drive.google.com']);
 const ghHref = u => safeHref(u, ['github.com']);
+const ytHref = u => safeHref(u, ['youtube.com', 'www.youtube.com', 'studio.youtube.com', 'youtu.be']);
 function b64decode(b64) {
   const bin = atob(String(b64).replace(/\s/g, ''));
   return new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
@@ -540,6 +563,30 @@ const SCHEMA = [
     { key: 'batch_minutes', label: 'Batch time limit (minutes)', type: 'int', min: 5, max: 300, adv: true },
     { key: 'timezone', label: 'Time zone for date folders', type: 'str', tz: true, adv: true },
   ]},
+  { section: 'publish', title: 'Publishing', blurb: 'Posting your reels to YouTube Shorts.', fields: [
+    { key: 'enabled', label: 'Post to YouTube automatically', type: 'bool' },
+    { key: 'times', label: 'Post times (one Short each)', type: 'str', pattern: /^\s*\d{1,2}:\d{2}(\s*,\s*\d{1,2}:\d{2}){0,11}\s*$/, patternMsg: 'Like 12:00, 17:00, 21:00',
+      hint: 'In your time zone. Three times = three Shorts a day.' },
+    { key: 'privacy', label: 'Visibility', type: 'enum', options: [['public', 'Public'], ['unlisted', 'Unlisted'], ['private', 'Private']],
+      hint: 'Public Shorts go live at their post time. Unlisted and private are for testing.' },
+    { key: 'channel_name', label: 'Your handle', type: 'str', max: 60, placeholder: '@yourchannel', hint: 'Added to every description.' },
+    { key: 'footer', label: 'Last line of every description', type: 'str', max: 500 },
+    { key: 'hashtags', label: 'Hashtags on every Short', type: 'str', pattern: /^\s*(#[^\s#<>]+\s*){1,5}$/, patternMsg: 'Up to 5, like #shorts #reaction',
+      hint: 'The AI adds 3–5 specific ones (film, characters) before these.' },
+    { key: 'voice', label: 'Title style', type: 'str', max: 300, placeholder: 'e.g. playful, short, Gen-Z', hint: 'Extra guidance for the AI title writer.' },
+    { key: 'language', label: 'Language of titles', type: 'str', pattern: /^[a-z]{2,3}(-[A-Za-z]{2,4})?$/, patternMsg: 'A language code like en or hi' },
+    { key: 'ai_disclosure', label: 'My reactions are AI-generated', type: 'bool', hint: "Adds YouTube's altered or synthetic content label. Leave off for real recordings." },
+    { key: 'tags', label: 'Tags on every Short (comma-separated)', type: 'str', max: 300, adv: true },
+    { key: 'category', label: 'YouTube category', type: 'enum', adv: true,
+      options: [['24', 'Entertainment'], ['1', 'Film & Animation'], ['23', 'Comedy'], ['22', 'People & Blogs'], ['20', 'Gaming'], ['17', 'Sports']] },
+    { key: 'ahead_days', label: 'Schedule this many days ahead', type: 'int', min: 0, max: 7, adv: true, hint: '1 = a missed run costs no posts.' },
+    { key: 'writer', label: 'Title writer', type: 'enum', options: [['auto', 'Auto'], ['gemini', 'Gemini'], ['local', 'Templates']], adv: true },
+    { key: 'notify_subscribers', label: 'Notify subscribers', type: 'bool', adv: true },
+    { key: 'credit', label: 'Credit the original video in descriptions', type: 'bool', adv: true },
+    { key: 'pause_on_block', label: "Hold a video's other reels when YouTube blocks one", type: 'bool', adv: true },
+    { key: 'made_for_kids', label: 'Made for kids', type: 'bool', adv: true },
+    { key: 'youtube', label: 'YouTube (TikTok comes later)', type: 'bool', adv: true },
+  ]},
   { section: 'storage', title: 'Storage', blurb: 'Where the files live. Change only if you renamed folders in Drive.', adv: true, fields: [
     { key: 'backend', label: 'Backend', type: 'enum', options: [['rclone', 'Google Drive'], ['local', 'Local folder']] },
     { key: 'rclone_remote', label: 'rclone remote name', type: 'str', pattern: /^[^:]+$/, patternMsg: 'Name without the colon' },
@@ -583,6 +630,7 @@ const S = {
   make: { daily: { date: '', count: '', reaction: '', force: false, dry: false },
           custom: { source: '', start: '', reaction: '', date: '', dry: false } },
   schedEdit: null,
+  pubEdit: null, pubDraft: {}, pubAddDate: '',
 };
 function loadConn() {
   for (const store of [localStorage, sessionStorage]) {
@@ -702,7 +750,7 @@ async function annotationsFor(run) {
 }
 
 /* ============================================================= dispatching jobs */
-const TASK_LABEL = { 'batch-reels': 'Make all reels', 'make-reels': 'Make reels', 'custom-reel': 'Custom reel', 'refresh-status': 'Refresh status', 'check-setup': 'Check setup', 'reset-source': 'Start video over' };
+const TASK_LABEL = { 'batch-reels': 'Make all reels', 'make-reels': 'Make reels', 'custom-reel': 'Custom reel', 'refresh-status': 'Refresh status', 'check-setup': 'Check setup', 'reset-source': 'Start video over', publish: 'Publish to YouTube', queue: 'Update queue' };
 async function dispatch(task, inputs) {
   const clean = { task };
   for (const [k, v] of Object.entries(inputs || {})) {
@@ -859,7 +907,7 @@ async function refreshAll(first = false) {
 }
 
 /* -------------------------------------------------------------------- shell */
-const TABS = [['overview', 'Overview'], ['make', 'Make'], ['library', 'Library'], ['runs', 'Runs'], ['settings', 'Settings']];
+const TABS = [['overview', 'Overview'], ['make', 'Make'], ['publish', 'Publish'], ['library', 'Library'], ['runs', 'Runs'], ['settings', 'Settings']];
 function renderShell() {
   const app = $('#app'); app.replaceChildren();
   const themeBtn = h('button', { class: 'iconbtn', title: 'Theme', 'aria-label': 'Change theme', onclick: () => {
@@ -894,16 +942,16 @@ function refreshDynamic() {
   const rb = $('#refresh-btn');
   if (rb) rb.replaceChildren(S.busy.has('all') ? h('span', { class: 'spin' }) : icon('refresh'));
   renderLive();
-  if (S.tab === 'overview' || S.tab === 'runs' || S.tab === 'library') renderView();
+  if (S.tab === 'overview' || S.tab === 'runs' || S.tab === 'library' || (S.tab === 'publish' && !S.pubEdit)) renderView();
 }
 function renderView(force = false) {
   const view = $('#view'); if (!view) return;
-  const typing = view.contains(document.activeElement) && (S.tab === 'make' || S.tab === 'settings');
+  const typing = view.contains(document.activeElement) && (S.tab === 'make' || S.tab === 'settings' || S.tab === 'publish');
   if (typing && !force) return;   // background refreshes never rebuild a form someone is using
   const scrollY = window.scrollY;
   view.replaceChildren();
   if (S.error) view.append(h('div', { class: 'banner bad', style: { marginBottom: '16px' } }, icon('alert'), h('div', null, S.error)));
-  ({ overview: renderOverview, make: renderMake, library: renderLibrary, runs: renderRuns, settings: renderSettings }[S.tab])(view);
+  ({ overview: renderOverview, make: renderMake, publish: renderPublish, library: renderLibrary, runs: renderRuns, settings: renderSettings }[S.tab])(view);
   window.scrollTo({ top: scrollY });
 }
 
@@ -936,6 +984,8 @@ function renderLive() {
   if (L.inputs.source) details.push(clipName(L.inputs.source) + (L.inputs.start ? ` @ ${L.inputs.start}` : ''));
   if (L.inputs.date) details.push(L.inputs.date);
   if (L.inputs.reaction) details.push('reaction: ' + clipName(L.inputs.reaction));
+  if (L.inputs.item) details.push(reelLabel(fileName(L.inputs.item)));
+  if (L.task === 'queue' && L.inputs.op) details.push(L.inputs.op);
   if (L.inputs.dry_run === 'true') details.push('dry run');
   const card = h('div', { class: 'card live ' + cls, style: { marginBottom: '4px' } },
     h('div', { class: 'row wrap between' },
@@ -987,6 +1037,7 @@ function reelCard(day, reel) {
       reel.note ? h('div', { class: 'small ellipsis', title: reel.note }, reel.note) : null,
       h('div', { class: 'small muted ellipsis', title: reel.reaction || '' }, reel.reaction ? 'Reaction: ' + clipName(fileName(reel.reaction)) : ''),
       fallback ? h('div', { class: 'tiny', style: { color: 'var(--warn)' } }, `No ${emoLabel(reel.emotion).toLowerCase()} clip yet: used ${emoLabel(reel.matched).toLowerCase()}`) : null,
+      ytLine(pubFor(day.date, reel.name)),
       link ? h('a', { class: 'link', href: link, target: '_blank', rel: 'noopener noreferrer', style: { marginTop: '6px' } }, 'Open in Drive', icon('ext')) : null));
 }
 function warningsBanners(view) {
@@ -1021,7 +1072,8 @@ function renderOverview(view) {
       t ? h('div', { class: 'meter ' + meterCls }, h('i', { style: { width: `${Math.min(100, (daysLeft / Math.max(1, low * 2)) * 100)}%` } })) : null),
     statCard('Reactions', 'user', t ? `${t.reactions} clip${t.reactions === 1 ? '' : 's'}` : '–',
       st && st.categories ? `${st.categories.filter(c => c.clips).length} of ${st.categories.length} emotions covered` : (st ? reactNext : ''),
-      st && st.categories ? h('a', { class: 'link', href: '#', style: { marginTop: '8px' }, onclick: e => { e.preventDefault(); gotoTab('library'); } }, 'What to record →') : null));
+      st && st.categories ? h('a', { class: 'link', href: '#', style: { marginTop: '8px' }, onclick: e => { e.preventDefault(); gotoTab('library'); } }, 'What to record →') : null),
+    ytStatCard(st && st.publish));
   view.append(grid);
 
   view.append(h('div', { class: 'section-head' }, h('h2', null, 'Quick actions')));
@@ -1260,6 +1312,205 @@ function customCard(st, today) {
 }
 
 /* ------------------------------------------------------------------ library */
+/* ------------------------------------------------------------------ publish */
+const PUB_STATUS = {
+  scheduled: ['run', 'Scheduled'], live: ['ok', 'Live'], unlisted: ['idle', 'Unlisted'], private: ['warn', 'Private'],
+  queued: ['idle', 'Waiting'], held: ['warn', 'On hold'], failed: ['bad', 'Failed'], blocked: ['bad', 'Blocked'],
+  removed: ['idle', 'Removed'], skipped: ['idle', 'Skipped'],
+};
+function pubFor(date, reel) {
+  const P = S.status && S.status.publish;
+  return P ? (P.items || []).find(i => i.date === date && i.reel === reel) || null : null;
+}
+function pubPill(it) {
+  const [cls, text] = PUB_STATUS[it.status] || ['idle', it.status];
+  return h('span', { class: 'pill ' + cls }, it.status === 'blocked' && it.blocked_in ? `Blocked in ${it.blocked_in} countries` : text);
+}
+function queueSize(P) {
+  const n = P.waiting, d = P.days_of_posts;
+  return `${n} reel${n === 1 ? '' : 's'}` + (d >= 1 ? ` · ~${d} day${d === 1 ? '' : 's'}` : n ? ' · under a day' : '');
+}
+function whenText(iso, approx) { return iso ? (approx ? '≈ ' : '') + fmtWhen(new Date(iso)) : ''; }
+function ytLine(it) {
+  if (!it) return null;
+  const href = ytHref(it.url);
+  return h('div', { class: 'ytline tiny' }, icon('yt'), pubPill(it),
+    it.at && it.status !== 'skipped' ? h('span', { class: 'muted num' }, whenText(it.at, it.status === 'queued')) : null,
+    href ? h('a', { class: 'link', href, target: '_blank', rel: 'noopener noreferrer' }, 'Open') : null);
+}
+function ytStatCard(P) {
+  const goto = h('a', { class: 'link', href: '#', style: { marginTop: '8px' }, onclick: e => { e.preventDefault(); gotoTab('publish'); } }, 'Open the queue →');
+  if (!P) return statCard('YouTube', 'yt', '–', 'Refresh status to see the queue', goto);
+  const value = !P.enabled ? 'Paused' : !P.connected ? 'Not connected' : P.next_post ? fmtWhen(new Date(P.next_post)) : 'Nothing scheduled';
+  const d = P.days_of_posts;
+  const sub = P.connected || P.waiting ? `${P.waiting} waiting · ${d >= 1 ? `~${d} day${d === 1 ? '' : 's'}` : 'under a day'} of posts` : 'Connect it to post automatically';
+  return statCard(P.next_post && P.connected && P.enabled ? 'Next YouTube post' : 'YouTube', 'yt', value, sub, goto);
+}
+function miniThumb(path) {
+  const img = h('img', { alt: '', loading: 'lazy', hidden: true });
+  if (path) thumbUrl(path).then(u => { if (u) { img.src = u; img.hidden = false; } });
+  return h('div', { class: 'mini-thumb' }, img);
+}
+function copyBox(text) {
+  return h('div', { class: 'code' }, h('code', { class: 'grow' }, text),
+    h('button', { class: 'iconbtn', title: 'Copy', 'aria-label': 'Copy', onclick: async () => {
+      try { await navigator.clipboard.writeText(text); toast('Copied'); } catch { toast('Select the text and copy it', true); }
+    } }, icon('copy')));
+}
+function setupCard(P) {
+  const secrets = S.repo ? ghHref(`${S.repo.html_url}/settings/secrets/actions/new`) : null;
+  const readme = S.repo ? ghHref(`${S.repo.html_url}#phase-8---publish-to-youtube`) : null;
+  return h('div', { class: 'card setup', style: { marginTop: '14px' } },
+    h('h2', null, 'Connect your YouTube channel'),
+    h('div', { class: 'small muted' }, 'One-time setup, about 10 minutes. Until then, reels are queued with their titles and nothing is posted.'),
+    h('ol', null,
+      h('li', null, h('strong', null, 'Google Cloud: '), 'in your project, enable the ', h('em', null, 'YouTube Data API v3'),
+        ', set the consent screen to ', h('em', null, 'In production'), ', and create an OAuth client of type ', h('em', null, 'Desktop app'), '. Download its JSON. ',
+        h('a', { class: 'link', href: 'https://console.cloud.google.com/apis/library/youtube.googleapis.com', target: '_blank', rel: 'noopener noreferrer' }, 'Open Google Cloud', icon('ext'))),
+      h('li', null, h('strong', null, 'On your Mac, '), 'in the project folder:',
+        copyBox('python3 scripts/youtube_auth.py ~/Downloads/client_secret_*.json'),
+        h('div', { class: 'small muted', style: { marginTop: '6px' } }, 'Sign in and pick your channel. The token lands on your clipboard (get the latest code first with git pull).')),
+      h('li', null, h('strong', null, 'GitHub: '), 'add it as the secret ', h('span', { class: 'mono' }, 'YOUTUBE_TOKEN'), '. ',
+        secrets ? h('a', { class: 'link', href: secrets, target: '_blank', rel: 'noopener noreferrer' }, 'Add secret', icon('ext')) : null)),
+    h('div', { class: 'row wrap', style: { marginTop: '14px' } },
+      taskButton('check-setup', {}, 'Check connection', 'btn primary', 'stethoscope'),
+      readme ? h('a', { class: 'btn ghost', href: readme, target: '_blank', rel: 'noopener noreferrer' }, 'Full guide', icon('ext')) : null));
+}
+function pubHeader(P) {
+  const on = S.cfgValues['publish.enabled'] === true;
+  const sw = h('input', { type: 'checkbox', checked: on, onchange: async e => {
+    const val = e.target.checked; e.target.disabled = true;
+    try { await saveConfig({ 'publish.enabled': val }, val ? 'Dashboard: start publishing' : 'Dashboard: pause publishing'); toast(val ? 'Publishing is on' : 'Publishing paused'); }
+    catch (err) { onError(err); }
+    finally { renderView(true); }
+  } });
+  const ch = P.channel;
+  const chHref = ch ? ytHref(ch.url) : null;
+  return h('div', { class: 'card' },
+    h('div', { class: 'pub-head' },
+      h('div', { class: 'yt-mark' }, icon('yt')),
+      h('div', { class: 'grow', style: { minWidth: '180px' } },
+        h('div', { style: { fontWeight: 650, fontSize: '16px' } }, ch && P.connected ? ch.title : P.connected ? 'YouTube' : 'YouTube not connected'),
+        h('div', { class: 'small muted' }, ch && P.connected ? (ch.handle || 'Your channel') : 'Reels wait in the queue until you connect',
+          chHref && P.connected ? h('a', { class: 'link', href: chHref, target: '_blank', rel: 'noopener noreferrer', style: { marginLeft: '8px' } }, 'Channel', icon('ext')) : null)),
+      h('label', { class: 'switch' }, sw, on ? 'Publishing on' : 'Publishing paused')),
+    h('div', { class: 'kv' },
+      h('div', null, h('div', { class: 'k' }, 'Next post'), h('div', { class: 'v' }, P.next_post ? fmtWhen(new Date(P.next_post)) : '–')),
+      h('div', null, h('div', { class: 'k' }, 'Waiting to post'), h('div', { class: 'v num' }, queueSize(P))),
+      h('div', null, h('div', { class: 'k' }, `${P.per_day} a day at`), h('div', { class: 'v num' }, P.times.join(' · '))),
+      h('div', null, h('div', { class: 'k' }, 'Visibility'), h('div', { class: 'v' }, P.privacy === 'public' ? 'Public at post time' : P.privacy[0].toUpperCase() + P.privacy.slice(1)))),
+    h('div', { class: 'row wrap', style: { marginTop: '14px' } },
+      taskButton('publish', {}, 'Schedule next posts', 'btn primary', 'cal'),
+      taskButton('publish', { dry_run: true }, 'Preview plan', 'btn', 'info'),
+      h('button', { class: 'btn ghost', onclick: () => gotoTab('settings') }, 'Settings'),
+      P.last_run ? h('span', { class: 'small muted' }, `Last checked ${relTime(P.last_run)}`) : null));
+}
+function pubEditor(it) {
+  const E = (S.pubDraft[it.id] ||= { title: it.title || '', description: it.description || '', tags: (it.tags || []).join(', ') });
+  const count = h('span', { class: 'tiny muted num' });
+  const paint = () => { const n = [...E.title].length; count.textContent = `${n}/100`; count.style.color = n > 100 ? 'var(--bad)' : ''; };
+  paint();
+  return h('div', { class: 'editor' },
+    h('div', { class: 'field' }, h('div', { class: 'row between' }, h('label', { for: 'pe-title' }, 'Title'), count),
+      h('input', { class: 'input', id: 'pe-title', value: E.title, maxlength: 100, oninput: e => { E.title = e.target.value; paint(); } })),
+    h('div', { class: 'field' }, h('label', { for: 'pe-desc' }, 'Description'),
+      h('textarea', { class: 'input', id: 'pe-desc', rows: 7, maxlength: 4900, oninput: e => { E.description = e.target.value; } }, E.description),
+      h('div', { class: 'hint' }, 'Hashtags on the last line; YouTube shows the first three. No < or > characters.')),
+    h('div', { class: 'field' }, h('label', { for: 'pe-tags' }, 'Tags'),
+      h('input', { class: 'input', id: 'pe-tags', value: E.tags, oninput: e => { E.tags = e.target.value; } }),
+      h('div', { class: 'hint' }, 'Comma-separated search phrases.')),
+    h('div', { class: 'row wrap' },
+      taskButton('queue', () => { S.pubEdit = null; return { op: 'edit', item: it.id, title: E.title, description: E.description, tags: E.tags }; }, 'Save text', 'btn primary sm', 'check'),
+      h('button', { class: 'btn sm ghost', onclick: () => { S.pubEdit = null; delete S.pubDraft[it.id]; renderView(true); } }, 'Cancel')));
+}
+function pubRow(it) {
+  const waiting = ['queued', 'failed', 'held'].includes(it.status);
+  const href = ytHref(it.url);
+  const vid = href ? (href.match(/shorts\/([\w-]+)/) || [])[1] : null;
+  const actions = [];
+  if (waiting && it.status !== 'held') {
+    actions.push(h('button', { class: 'btn sm', onclick: () => { S.pubEdit = S.pubEdit === it.id ? null : it.id; renderView(true); } }, icon('edit'), 'Edit text'));
+    const now = taskButton('publish', { item: it.id }, 'Post now', 'btn sm', 'send');
+    now.addEventListener('click', ev => { if (!confirm(`Post "${it.title || it.reel}" on YouTube right now?`)) ev.stopImmediatePropagation(); }, { capture: true });
+    actions.push(now);
+    actions.push(taskButton('queue', { op: 'rewrite', item: it.id }, 'New AI text', 'btn sm ghost', 'wand'));
+    actions.push(taskButton('queue', { op: 'skip', item: it.id }, 'Skip', 'btn sm ghost', 'skip'));
+  }
+  if (it.status === 'failed') actions.unshift(taskButton('queue', { op: 'retry', item: it.id }, 'Try again', 'btn sm primary', 'refresh'));
+  if (it.status === 'held') actions.push(taskButton('queue', { op: 'resume', source: it.source }, 'Resume this video', 'btn sm', 'play'));
+  if (it.status === 'skipped' || it.status === 'removed') actions.push(taskButton('queue', { op: 'unskip', item: it.id }, 'Queue again', 'btn sm', 'refresh'));
+  if (href) actions.push(h('a', { class: 'btn sm', href, target: '_blank', rel: 'noopener noreferrer' }, icon('yt'), 'Watch'));
+  if (vid) actions.push(h('a', { class: 'btn sm ghost', href: `https://studio.youtube.com/video/${vid}/edit`, target: '_blank', rel: 'noopener noreferrer' }, 'Studio', icon('ext')));
+  const by = it.by === 'you' ? 'edited by you' : it.by && it.by.startsWith('gemini') ? 'AI text' : it.by === 'template' ? 'template text' : '';
+  return h('div', { class: 'item', style: { alignItems: 'flex-start' } },
+    miniThumb(it.thumb),
+    h('div', { class: 'grow' },
+      h('div', { class: 't', style: { overflowWrap: 'anywhere' } }, it.title || h('span', { class: 'muted' }, 'Title is written before it posts')),
+      h('div', { class: 'small muted ellipsis' }, `${it.video} · ${reelLabel(it.reel)}`),
+      h('div', { class: 'row wrap', style: { gap: '6px', marginTop: '6px' } }, pubPill(it), it.emotion ? emoChip(it.emotion) : null,
+        it.at ? h('span', { class: 'small muted num' }, whenText(it.at, it.status === 'queued')) : null,
+        by ? h('span', { class: 'tiny faint' }, by) : null),
+      it.error ? h('div', { class: 'small', style: { color: 'var(--bad)', marginTop: '6px' } }, it.error) : null,
+      S.pubEdit === it.id ? pubEditor(it) : null,
+      actions.length ? h('div', { class: 'pub-actions' }, actions) : null));
+}
+function pubSection(view, title, items, sub) {
+  if (!items.length) return;
+  view.append(h('div', { class: 'section-head' }, h('h2', { style: { whiteSpace: 'nowrap' } }, title, ' ', h('span', { class: 'badge-n' }, items.length)), sub ? h('span', { class: 'small muted hide-sm' }, sub) : null));
+  view.append(h('div', { class: 'card' }, h('div', { class: 'list' }, items.map(pubRow))));
+}
+function renderPublish(view) {
+  const st = S.status, P = st && st.publish;
+  if (!P) {
+    view.append(h('div', { class: 'empty' }, h('h3', null, 'No publishing data yet'),
+      h('div', { class: 'small' }, 'Run "Refresh status" once the latest project code is on GitHub.'),
+      h('div', { style: { marginTop: '14px' } }, taskButton('refresh-status', {}, 'Refresh status', 'btn primary sm', 'refresh'))));
+    return;
+  }
+  const busy = S.live && !S.live.done;
+  if (busy) view.append(h('div', { class: 'banner info', style: { marginBottom: '14px' } }, icon('info'), h('div', null, 'A job is running. Changes start when it finishes.')));
+  if (P.problem && P.problem !== 'not connected') view.append(h('div', { class: 'banner bad', style: { marginBottom: '10px' } }, icon('alert'), h('div', null, P.problem)));
+  for (const hld of P.held || []) view.append(h('div', { class: 'banner warn', style: { marginBottom: '10px' } }, icon('alert'),
+    h('div', { class: 'grow' }, h('strong', null, hld.video + ': '), hld.why + '. Its other reels wait.'),
+    taskButton('queue', { op: 'resume', source: hld.source }, 'Resume', 'btn sm')));
+  view.append(pubHeader(P));
+  if (!P.connected) view.append(setupCard(P));
+
+  const items = P.items || [];
+  const byAt = (a, b) => String(a.at || '').localeCompare(String(b.at || ''));
+  const scheduled = items.filter(i => i.status === 'scheduled').sort(byAt);
+  const waiting = items.filter(i => ['queued', 'failed', 'held'].includes(i.status))
+    .sort((a, b) => (a.status === 'queued' ? 0 : a.status === 'held' ? 1 : 2) - (b.status === 'queued' ? 0 : b.status === 'held' ? 1 : 2) || (a.position || 1e9) - (b.position || 1e9));
+  const posted = items.filter(i => ['live', 'unlisted', 'private', 'blocked', 'removed'].includes(i.status)).sort(byAt).reverse().slice(0, 40);
+  const skipped = items.filter(i => i.status === 'skipped');
+
+  pubSection(view, 'Scheduled on YouTube', scheduled, 'Goes live at the time shown');
+  pubSection(view, 'Waiting to post', waiting, P.connected ? 'In posting order: videos take turns' : 'Posts once YouTube is connected');
+  if (!items.length) view.append(h('div', { class: 'empty', style: { marginTop: '16px' } }, h('h3', null, 'The queue is empty'),
+    h('div', { class: 'small' }, 'New reels are added automatically. Add reels you made earlier below.')));
+  pubSection(view, 'Posted', posted);
+  if (skipped.length) {
+    const d = h('details', { class: 'adv', style: { marginTop: '18px' } }, h('summary', null, `Skipped (${skipped.length})`, icon('down')),
+      h('div', { class: 'card', style: { marginTop: '10px' } }, h('div', { class: 'list' }, skipped.map(pubRow))));
+    view.append(d);
+  }
+
+  /* add reels made before publishing was on */
+  const queued = new Set(items.map(i => i.date + '/' + i.reel));
+  const days = (st.days || []).map(d => ({ date: d.date, n: d.reels.filter(r => !queued.has(d.date + '/' + r.name)).length })).filter(d => d.n);
+  if (days.length) {
+    if (!days.some(d => d.date === S.pubAddDate)) S.pubAddDate = days[0].date;
+    const sel = h('select', { class: 'input', onchange: e => { S.pubAddDate = e.target.value; } },
+      days.map(d => h('option', { value: d.date }, `${d.date} · ${d.n} reel${d.n === 1 ? '' : 's'} not queued`)));
+    sel.value = S.pubAddDate;
+    view.append(h('div', { class: 'section-head' }, h('h2', null, 'Add earlier reels')));
+    view.append(h('div', { class: 'card' },
+      h('div', { class: 'small muted', style: { marginBottom: '12px' } }, 'Reels made before publishing was switched on are not queued automatically.'),
+      h('div', { class: 'row wrap' }, h('div', { class: 'grow', style: { minWidth: '220px' } }, sel),
+        taskButton('queue', () => ({ op: 'add', date: S.pubAddDate }), 'Add to queue', 'btn', 'cal'))));
+  }
+}
+
 function sourceAnalysis(s) {
   const a = s.analysis;
   if (!a) return h('div', { class: 'tiny faint', style: { marginTop: '6px' } }, 'Moments not analysed yet: this happens the first time the video is used, or with Refresh status.');
@@ -1441,9 +1692,14 @@ function renderSettings(view) {
       : h('div', { class: 'banner warn', style: { marginBottom: '14px' } }, icon('key'), h('div', null,
           'No Gemini key yet, so emotions are mostly unknown. Get a free key at aistudio.google.com/apikey and add it as the ',
           h('a', { class: 'link', href: ghHref(`${S.repo.html_url}/settings/secrets/actions/new`) || '#', target: '_blank', rel: 'noopener noreferrer' }, 'GEMINI_API_KEY secret', icon('ext')), '.'))) : null;
+    const pubNote = sec.section === 'publish' && S.status && S.status.publish ? (S.status.publish.connected
+      ? h('div', { class: 'banner info', style: { marginBottom: '14px' } }, icon('check'), h('div', null,
+          'YouTube connected' + (S.status.publish.channel ? `: ${S.status.publish.channel.title}` : '') + '.'))
+      : h('div', { class: 'banner warn', style: { marginBottom: '14px' } }, icon('key'), h('div', null,
+          'YouTube is not connected yet. ', h('a', { class: 'link', href: '#', onclick: e => { e.preventDefault(); gotoTab('publish'); } }, 'How to connect →')))) : null;
     const body = h('div', { class: 'card' },
       h('div', { style: { marginBottom: '14px' } }, h('h2', null, sec.title), sec.blurb ? h('div', { class: 'small muted' }, sec.blurb) : null),
-      keyNote,
+      keyNote, pubNote,
       basic.length ? h('div', { class: 'form-grid' }, basic.map(f => fieldControl(sec.section, f))) : null,
       adv.length ? h('details', { class: 'adv', style: { marginTop: basic.length ? '18px' : 0 } },
         h('summary', null, sec.adv ? 'Show storage settings' : 'Advanced', icon('down')),
