@@ -842,7 +842,7 @@ async function annotationsFor(run) {
 }
 
 /* ============================================================= dispatching jobs */
-const TASK_LABEL = { 'batch-reels': 'Make all reels', 'make-reels': 'Make reels', 'custom-reel': 'Custom reel', 'review-reel': 'Review reel', 'refresh-status': 'Refresh status', 'check-setup': 'Check setup', 'reset-source': 'Start video over', publish: 'Publish to YouTube', queue: 'Update queue' };
+const TASK_LABEL = { 'batch-reels': 'Make all reels', 'make-reels': 'Make reels', 'custom-reel': 'Custom reel', 'review-reel': 'Review reel', 'preview-reel': 'Preview', 'refresh-status': 'Refresh status', 'check-setup': 'Check setup', 'reset-source': 'Start video over', publish: 'Publish to YouTube', queue: 'Update queue' };
 async function dispatch(task, inputs) {
   const clean = { task };
   for (const [k, v] of Object.entries(inputs || {})) {
@@ -1537,7 +1537,7 @@ function rvRow(row) {
 function renderReview(view) {
   const st = S.status, R = st && st.review;
   const movie = MOVIE();
-  if (!R || !R.items.length) {
+  if (!R || (!R.items.length && !(R.previews || []).length)) {
     view.append(h('div', { class: 'empty' }, h('h3', null, 'Nothing to review yet'),
       h('div', { class: 'small' }, movie ? 'Reels from the movie engine show up here with their checks after the next run.'
         : 'Review works with the movie engine. Switch it on in Settings → Moments.'),
@@ -1567,15 +1567,45 @@ function renderReview(view) {
       h('div', null, h('div', { class: 'k' }, 'Rejected'), h('div', { class: 'v num' }, groups.rejected.length)),
       h('div', null, h('div', { class: 'k' }, 'Average score'), h('div', { class: 'v num' },
         items.some(x => x.score != null) ? Math.round(items.filter(x => x.score != null).reduce((a, x) => a + x.score, 0) / items.filter(x => x.score != null).length) : '–')))));
-  if (!groups[S.rvFilter]) S.rvFilter = 'attention';
-  if (S.rvFilter === 'attention' && !groups.attention.length) S.rvFilter = 'all';
-  view.append(h('div', { style: { margin: '18px 0 12px', maxWidth: '560px' } },
-    segCtl('Show', [['attention', `Needs a look (${groups.attention.length})`], ['all', `All (${items.length})`], ['passed', 'Passed'], ['rejected', 'Rejected']],
-      () => S.rvFilter, v => { S.rvFilter = v; S.rvEdit = null; renderView(true); })));
+  const previews = R.previews || [];
+  if (!groups[S.rvFilter] && S.rvFilter !== 'previews') S.rvFilter = 'attention';
+  if (S.rvFilter === 'attention' && !groups.attention.length) S.rvFilter = items.length ? 'all' : 'previews';
+  const opts = [['attention', `Needs a look (${groups.attention.length})`], ['all', `All (${items.length})`], ['passed', 'Passed'], ['rejected', 'Rejected']];
+  if (previews.length) opts.push(['previews', `Previews (${previews.length})`]);
+  view.append(h('div', { style: { margin: '18px 0 12px', maxWidth: previews.length ? '700px' : '560px' } },
+    segCtl('Show', opts, () => S.rvFilter, v => { S.rvFilter = v; S.rvEdit = null; renderView(true); })));
+  if (S.rvFilter === 'previews') {
+    view.append(h('div', { class: 'small muted', style: { margin: '-2px 0 10px' } },
+      `Previews are in ${st.storage.folders.output}/_previews in Drive: never posted and nothing is used up. Delete them there when done.`));
+    view.append(h('div', { class: 'card' }, previews.map(pvRow)));
+    return;
+  }
   const list = groups[S.rvFilter];
   if (!list.length) view.append(h('div', { class: 'empty' }, h('h3', null, S.rvFilter === 'attention' ? 'All clear' : 'None here'),
     h('div', { class: 'small' }, S.rvFilter === 'attention' ? 'Every reel passed its checks.' : '')));
   else view.append(h('div', { class: 'card' }, list.slice(0, 60).map(rvRow)));
+}
+function pvRow(p) {
+  const img = h('img', { alt: '', loading: 'lazy', hidden: true });
+  const pic = p.strip || p.thumb;
+  if (pic) thumbUrl(pic).then(u => { if (u) { img.src = u; img.hidden = false; } });
+  const drive = driveHref(p.link);
+  const reasons = (p.qc_reasons || []).filter(r => !(p.ai_summary && /^Gemini \(\d+\/100\)/.test(r)));
+  return h('div', { class: 'rv' },
+    h('div', null, h('div', { class: 'strip' + (p.strip ? '' : ' one') }, img)),
+    h('div', { style: { minWidth: 0 } },
+      h('div', { class: 't', style: { fontWeight: 650, overflowWrap: 'anywhere' } }, `${clipName(p.source || p.name)}`),
+      h('div', { class: 'small muted' }, [`${hms(p.start)}–${hms(p.end)}`, p.duration ? `${Math.round(p.duration)} s` : null, p.made ? relTime(p.made) : null].filter(Boolean).join(' · ')),
+      h('div', { class: 'row wrap', style: { gap: '6px', marginTop: '8px' } }, h('span', { class: 'pill idle' }, 'Preview'), qcPill(p.qc), scoreBadge(p.score),
+        p.type ? tag(TYPE_LABEL[p.type] || p.type) : null, p.layout ? tag(layoutText(p.layout)) : null,
+        p.captions ? tag(`${p.captions} caption${p.captions === 1 ? '' : 's'}`) : null),
+      h('div', { class: 'small', style: { marginTop: '8px' } },
+        p.reaction_on ? `Your reaction: ${PLACEMENT[p.placement] || p.placement || 'on'} · ${clipName(fileName(p.reaction))}` : 'Clip only',
+        p.reaction_reason ? h('span', { class: 'muted' }, ` (${p.reaction_reason})`) : null),
+      p.hook ? h('div', { class: 'small muted' }, `Hook: “${p.hook}”`) : null,
+      reasons.length ? h('ul', { class: 'reasons' }, reasons.map(r => h('li', null, r))) : null,
+      p.ai_summary ? h('div', { class: 'ai' }, h('strong', null, `Gemini${p.ai_score != null ? ` ${p.ai_score}/100` : ''}: `), p.ai_summary) : null,
+      drive ? h('div', { class: 'pub-actions' }, h('a', { class: 'btn sm', href: drive, target: '_blank', rel: 'noopener noreferrer' }, icon('eye'), 'Watch in Drive')) : null));
 }
 
 function movieCustomCard(st, src, today) {
@@ -1663,14 +1693,20 @@ function momentsBar(src) {
       h('span', null, h('i', { style: { background: 'var(--used)' } }), 'Made'),
       h('span', null, h('i', { style: { background: 'var(--border-strong)' } }), 'Left out')));
 }
-function momentRow(src, m) {
+function momentRow(src, m, done = false) {
   const label = m.used ? 'Made' : m.status === 'good' ? (m.next ? 'Next up' : 'Good') : m.status === 'near' ? 'Near miss' : m.status === 'weak' ? 'Weak' : 'Rejected';
   const cls = m.used ? 'idle' : m.status === 'good' ? 'ok' : m.status === 'near' ? 'warn' : m.status === 'rejected' ? 'bad' : 'idle';
-  let act = null;
-  if (m.used && m.reel) act = h('button', { class: 'btn sm ghost', onclick: () => { S.rvFilter = 'all'; gotoTab('review'); } }, 'See reel');
-  else if (!m.used && m.status !== 'rejected') {
-    act = taskButton('custom-reel', { source: src.name, start: String(m.start) }, m.status === 'good' ? 'Make this' : 'Make anyway', 'btn sm' + (m.status === 'good' ? '' : ' ghost'), 'wand');
+  const acts = [];
+  if (m.used && m.reel) acts.push(h('button', { class: 'btn sm ghost', onclick: () => { S.rvFilter = 'all'; gotoTab('review'); } }, 'See reel'));
+  else if (!done && !m.used && m.status !== 'rejected') {
+    acts.push(taskButton('custom-reel', { source: src.name, start: String(m.start) }, m.status === 'good' ? 'Make this' : 'Make anyway', 'btn sm' + (m.status === 'good' ? '' : ' ghost'), 'wand'));
   }
+  if (m.status !== 'rejected') {
+    const pv = taskButton('preview-reel', { source: src.name, start: String(m.start) }, 'Preview', 'btn sm ghost', 'eye');
+    pv.title = 'Render it to the previews folder: not used up, never posted';
+    acts.push(pv);
+  }
+  const act = acts.length ? h('div', { class: 'row wrap', style: { gap: '4px', justifyContent: 'flex-end' } }, acts) : null;
   const why = m.reject || [m.hook_text ? `Hook: “${m.hook_text}”` : '', m.reaction_fit === 'off' ? `clip only: ${m.reaction_reason || 'needs the whole screen'}` : '',
     m.needs_context ? 'needs context' : ''].filter(Boolean).join(' · ');
   return h('div', { class: 'mom' + (m.used ? ' used' : '') },
@@ -1682,7 +1718,7 @@ function momentRow(src, m) {
     h('div', { class: 'act' }, act),
     why ? h('div', { class: 'why' }, why) : null);
 }
-function movieAnalysis(s) {
+function movieAnalysis(s, done = false) {
   const a = s.analysis, c = a.counts || {};
   const open = !!S.libOpen[s.name];
   const kind = { trailer: 'Trailer', scene: 'Scene', film: 'Film', other: 'Video' }[a.kind] || 'Video';
@@ -1698,7 +1734,7 @@ function movieAnalysis(s) {
     h('details', { class: 'adv', style: { marginTop: '8px' }, open: open ? true : null,
       ontoggle: e => { S.libOpen[s.name] = e.target.open; } },
       h('summary', null, `Moments (${(a.moments || []).length})`, icon('down')),
-      h('div', { class: 'moments' }, (a.moments || []).map(m => momentRow(s, m)))));
+      h('div', { class: 'moments' }, (a.moments || []).map(m => momentRow(s, m, done)))));
 }
 
 /* ------------------------------------------------------------------ publish */
@@ -1960,6 +1996,15 @@ function renderLibrary(view) {
         driveHref(s.link) ? h('a', { class: 'iconbtn', href: driveHref(s.link), target: '_blank', rel: 'noopener noreferrer', title: 'Open in Drive', 'aria-label': 'Open in Drive' }, icon('ext')) : null));
   }))));
 
+  const doneSrc = (st.review && st.review.done_sources) || [];
+  if (doneSrc.length) {
+    view.append(h('div', { class: 'section-head' }, h('h2', null, `Used-up videos (${doneSrc.length})`),
+      h('span', { class: 'small muted' }, `In ${st.storage.folders.done}: preview any moment`)));
+    view.append(h('div', { class: 'card' }, h('div', { class: 'list' }, doneSrc.map(s => h('div', { class: 'item', style: { alignItems: 'flex-start' } },
+      h('div', { class: 'grow' }, h('div', { class: 't ellipsis', title: s.name }, clipName(s.name)),
+        h('div', { class: 'small muted num' }, [s.duration ? hms(s.duration) : null, 'used up'].filter(Boolean).join(' · ')),
+        movieAnalysis(s, true)))))));
+  }
   view.append(h('div', { class: 'section-head' }, h('h2', null, `Reaction clips (${st.reactions.length})`),
     driveHref(links.reactions) ? h('a', { class: 'link', href: driveHref(links.reactions), target: '_blank', rel: 'noopener noreferrer' }, icon('folder'), st.storage.folders.reactions, icon('ext')) : null));
   if (!st.reactions.length) view.append(h('div', { class: 'empty' }, 'No reaction clips yet.'));
