@@ -1698,14 +1698,14 @@ function momentRow(src, m, done = false) {
   const cls = m.used ? 'idle' : m.status === 'good' ? 'ok' : m.status === 'near' ? 'warn' : m.status === 'rejected' ? 'bad' : 'idle';
   const acts = [];
   if (m.used && m.reel) acts.push(h('button', { class: 'btn sm ghost', onclick: () => { S.rvFilter = 'all'; gotoTab('review'); } }, 'See reel'));
-  else if (!done && !m.used && m.status !== 'rejected') {
-    acts.push(taskButton('custom-reel', { source: src.name, start: String(m.start) }, m.status === 'good' ? 'Make this' : 'Make anyway', 'btn sm' + (m.status === 'good' ? '' : ' ghost'), 'wand'));
+  else if (!done && !m.used) {
+    const mk = taskButton('custom-reel', { source: src.name, start: String(m.start) }, m.status === 'good' ? 'Make this' : 'Make anyway', 'btn sm' + (m.status === 'good' ? '' : ' ghost'), 'wand');
+    if (m.status === 'rejected') mk.title = `Left out automatically: ${m.reject}`;
+    acts.push(mk);
   }
-  if (m.status !== 'rejected') {
-    const pv = taskButton('preview-reel', { source: src.name, start: String(m.start) }, 'Preview', 'btn sm ghost', 'eye');
-    pv.title = 'Render it to the previews folder: not used up, never posted';
-    acts.push(pv);
-  }
+  const pv = taskButton('preview-reel', { source: src.name, start: String(m.start) }, 'Preview', 'btn sm ghost', 'eye');
+  pv.title = 'Render it to the previews folder: not used up, never posted';
+  acts.push(pv);
   const act = acts.length ? h('div', { class: 'row wrap', style: { gap: '4px', justifyContent: 'flex-end' } }, acts) : null;
   const why = m.reject || [m.hook_text ? `Hook: “${m.hook_text}”` : '', m.reaction_fit === 'off' ? `clip only: ${m.reaction_reason || 'needs the whole screen'}` : '',
     m.needs_context ? 'needs context' : ''].filter(Boolean).join(' · ');
