@@ -131,7 +131,7 @@ h2{font-size:17px;font-weight:650}h3{font-size:15px;font-weight:650}
 .switch input::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .15s;box-shadow:0 1px 2px rgba(0,0,0,.25)}
 .switch input:checked{background:var(--accent)}.switch input:checked::after{transform:translateX(16px)}
 .seg{display:flex;width:100%;border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:3px;background:var(--surface-2);gap:3px}
-.seg button{flex:1;white-space:nowrap;border:0;background:transparent;border-radius:7px;padding:6px 11px;cursor:pointer;font-weight:600;font-size:13.5px;color:var(--muted)}
+.seg button{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:0;background:transparent;border-radius:7px;padding:6px 11px;cursor:pointer;font-weight:600;font-size:13.5px;color:var(--muted)}
 .seg button[aria-pressed="true"]{background:var(--surface);color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.1)}
 .range{display:flex;align-items:center;gap:10px}.range input{flex:1;accent-color:var(--accent)}
 .range output{min-width:46px;text-align:right;font-variant-numeric:tabular-nums;font-size:13px;color:var(--muted)}
@@ -226,6 +226,29 @@ textarea.input{min-height:110px;resize:vertical;line-height:1.45;font-size:14px}
 .code .iconbtn{flex:none}
 .ytline{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px}
 
+/* ---- movie engine: moments, review */
+.score{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:650;font-variant-numeric:tabular-nums}
+.score .bar{width:46px;height:6px;border-radius:999px;background:var(--border);overflow:hidden}
+.score .bar i{display:block;height:100%;background:var(--ok);border-radius:999px}
+.score.near .bar i{background:var(--warn)}.score.weak .bar i,.score.rejected .bar i{background:var(--faint)}
+.tag{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;border-radius:7px;padding:1px 7px;background:var(--surface-2);border:1px solid var(--border);color:var(--muted);white-space:nowrap}
+.moments{display:flex;flex-direction:column;margin-top:10px;border-top:1px solid var(--border)}
+.mom{display:grid;grid-template-columns:96px 1fr auto;gap:4px 12px;align-items:center;padding:9px 0;border-bottom:1px solid var(--border)}
+.mom.used{opacity:.55}.mom .when{font-variant-numeric:tabular-nums;font-weight:650;font-size:13px}
+.mom .what{min-width:0}.mom .why{grid-column:2/4;font-size:12.5px;color:var(--muted)}
+.tl .rng{position:absolute;top:4px;bottom:4px;border-radius:4px;opacity:.85}
+.rv{display:grid;grid-template-columns:minmax(0,170px) 1fr;gap:16px;padding:16px 0;border-top:1px solid var(--border)}
+.rv:first-child{border-top:0;padding-top:4px}
+.rv .strip{width:100%;border-radius:10px;overflow:hidden;background:linear-gradient(var(--content) 0 50%,var(--reaction) 50% 100%);aspect-ratio:27/16;position:relative}
+.rv .strip.one{aspect-ratio:9/16;max-width:110px}
+.rv .strip img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.reasons{margin:8px 0 0;padding-left:18px;font-size:13px}.reasons li+li{margin-top:2px}
+.ai{font-size:13px;margin-top:8px;padding:8px 10px;border-radius:10px;background:var(--surface-2);border:1px solid var(--border)}
+@media (max-width:640px){
+  .rv{grid-template-columns:1fr}
+  .mom{grid-template-columns:78px 1fr}.mom>.act{grid-column:1/-1}
+}
+
 @media (max-width:640px){
   .stats{grid-template-columns:1fr 1fr;gap:10px}
   .stat{padding:14px}.stat .value{font-size:18px}
@@ -304,6 +327,9 @@ const ICONS = {
   skip: 'M5 6l7 6-7 6zM13 6l7 6-7 6z',
   copy: 'M9 9h10v11H9zM5 15V4h10',
   cal: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',
+  eye: 'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z',
+  thumb: 'M7 11v9H4v-9zM7 11l4-8a2.5 2.5 0 0 1 2.5 2.5V9h5a2 2 0 0 1 2 2.3l-1.2 7A2 2 0 0 1 17.3 20H7',
+  ban: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM5.6 5.6l12.8 12.8',
 };
 function icon(name, extra = '') {
   const ns = 'http://www.w3.org/2000/svg';
@@ -508,34 +534,88 @@ function tomlSet(text, section, key, value, type) {
 
 /* ---------------------------------------------------------------- settings schema */
 const PRESETS = ['ultrafast', 'superfast', 'veryfast', 'faster', 'fast', 'medium', 'slow', 'slower', 'veryslow'];
+const MOVIE = () => Number(S.cfgValues['engine.version'] ?? (S.status && S.status.config && S.status.config.engine) ?? 1) === 2;
 const SCHEMA = [
-  { section: 'reel', title: 'Look', blurb: 'How each reel is framed.', fields: [
-    { key: 'content_mode', label: 'Top half', type: 'enum', options: [['fill', 'Fill'], ['fit', 'Fit (blurred)']],
+  { section: 'engine', title: 'Moments', blurb: 'What gets clipped from your long videos, and how much.', fields: [
+    { key: 'version', label: 'Engine', type: 'enum', num: true, options: [[2, 'Movie'], [1, 'Classic']],
+      hint: 'Movie: whole moments (hook to payoff) of their own length, smart framing, captions and checks. Classic: fixed 10 s reels.' },
+    { key: 'min_score', label: 'Make reels from moments scoring at least', type: 'int', min: 0, max: 100, slider: true, show: v => `${v}/100`,
+      hint: 'Higher = fewer, stronger reels. 60 is a good start.' },
+    { key: 'trailer_max', label: 'Longest reel from a trailer (s)', type: 'float', min: 6, max: 60, step: 1 },
+    { key: 'max_seconds', label: 'Longest reel from a film or scene (s)', type: 'float', min: 6, max: 60, step: 1 },
+    { key: 'max_reels_trailer', label: 'Most reels from one trailer', type: 'int', min: 1, max: 50 },
+    { key: 'max_reels_film', label: 'Most reels from one film or scene video', type: 'int', min: 1, max: 100 },
+    { key: 'near_miss', label: 'Show near misses from score', type: 'int', min: 0, max: 100, adv: true,
+      hint: 'Moments between this and the score above are listed in the Library to make by hand.' },
+    { key: 'min_seconds', label: 'Shortest reel (s)', type: 'float', min: 3, max: 30, step: 0.5, adv: true },
+    { key: 'snap', label: 'Start and end on shot cuts and speech pauses', type: 'bool', adv: true },
+  ]},
+  { section: 'reaction', title: 'Your reaction', blurb: 'Whether your face is in a reel, and when.', fields: [
+    { key: 'mode', label: 'Show my reaction', type: 'enum', options: [['auto', 'Auto'], ['always', 'Always'], ['never', 'Never']],
+      hint: 'Auto decides per moment (no fitting clip, or a moment that needs the whole screen = clip only) and shows why in Review.' },
+    { key: 'popin_after', label: 'Pop in only around the big moment for reels longer than (s)', type: 'float', min: 5, max: 60, step: 1,
+      hint: 'Unless you have a "neutral" watching clip to fill the rest.' },
+    { key: 'owned_sources', label: 'My own videos (parts of their names, comma-separated)', type: 'str', max: 300, adv: true,
+      hint: 'Auto only reacts to big beats in these.' },
+  ]},
+  { section: 'layout', title: 'Framing', blurb: 'How the movie and your reaction share the screen. Nothing important is ever cut off.', fields: [
+    { key: 'tracking', label: 'Close-ups that follow faces and action', type: 'bool',
+      hint: 'Needs the Gemini key. Only used when the subject fits in every frame; otherwise the whole frame is shown.' },
+    { key: 'safe_zone', label: 'Keep text and faces clear of', type: 'enum', options: [['youtube', 'YouTube'], ['tiktok', 'TikTok'], ['none', 'None']],
+      hint: "The app's own buttons and captions." },
+    { key: 'box_width', label: 'Reaction box width', type: 'float', min: 0.4, max: 0.9, step: 0.01, slider: true, show: v => `${Math.round(v * 100)}%` },
+    { key: 'bubble_size', label: 'Reaction bubble size on close-ups (px)', type: 'int', min: 200, max: 500 },
+    { key: 'max_zoom', label: 'Most zoom into the movie', type: 'float', min: 1, max: 3, step: 0.1, slider: true, show: v => `${Number(v).toFixed(1)}×`,
+      hint: 'Above 1.5× a 1080p movie starts to look soft.' },
+    { key: 'allowed', label: 'Layouts the director may use', type: 'str', pattern: /^\s*(whole|closeup|stack)(\s*,\s*(whole|closeup|stack))*\s*$/, patternMsg: 'Like whole,closeup,stack', adv: true },
+    { key: 'radius', label: 'Corner rounding (px)', type: 'int', min: 0, max: 120, adv: true },
+    { key: 'border_px', label: 'Frame around your reaction (px)', type: 'int', min: 0, max: 20, adv: true },
+    { key: 'border_color', label: 'Frame colour', type: 'str', placeholder: 'white or #ffffff', adv: true },
+    { key: 'background', label: 'Behind the movie', type: 'str', placeholder: 'blur', adv: true, hint: 'blur, or a colour like black' },
+  ]},
+  { section: 'captions', title: 'Captions & text', blurb: 'Words on screen.', fields: [
+    { key: 'enabled', label: 'Captions of the dialogue', type: 'bool', hint: 'Written by Gemini from the sound, timed to the speech.' },
+    { key: 'style', label: 'Caption style', type: 'enum', options: [['bold', 'Bold'], ['minimal', 'Minimal'], ['cinematic', 'Cinematic']],
+      hint: 'Bold highlights the word being spoken.' },
+    { key: 'hook', label: 'Hook line for the first 2 seconds', type: 'bool' },
+    { key: 'label', label: 'Film title at the top', type: 'bool' },
+    { key: 'font', label: 'Font file', type: 'str', placeholder: 'DejaVu Sans Bold', adv: true },
+  ]},
+  { section: 'quality', title: 'Quality checks', blurb: 'Every finished reel is checked before it can be posted.', fields: [
+    { key: 'publish', label: 'Post', type: 'enum', options: [['pass', 'Passed or approved'], ['all', 'All but rejected']],
+      hint: 'Reels that need a look wait in the Review tab.' },
+    { key: 'ai_review', label: 'Gemini watches every reel', type: 'bool', hint: 'Hook, clarity, cut-off subjects, clean ending. One small request per reel.' },
+    { key: 'checks', label: 'Measured checks', type: 'bool', adv: true, hint: 'Black or frozen picture, loudness, safe zones.' },
+  ]},
+  { section: 'reel', title: 'Look', blurb: 'Size and quality of every reel. Fields marked "classic" only apply to the classic engine.', fields: [
+    { key: 'content_mode', label: 'Top half (classic)', type: 'enum', options: [['fill', 'Fill'], ['fit', 'Fit (blurred)']], classic: true,
       hint: 'Fill crops landscape video to fill the top. Fit shows the whole frame on a blurred copy.' },
     { key: 'remove_black_bars', label: 'Remove cinema black bars', type: 'bool' },
-    { key: 'layout', label: 'Layout', type: 'enum', options: [['split', 'Two halves'], ['inset', 'Reaction box']],
+    { key: 'layout', label: 'Layout (classic)', type: 'enum', options: [['split', 'Two halves'], ['inset', 'Reaction box']], classic: true,
       hint: 'Reaction box: bigger content on top, your reaction in a framed box below it.' },
-    { key: 'split', label: 'Content height', type: 'float', min: 0.2, max: 0.8, step: 0.01, slider: true, show: v => `${Math.round(v * 100)}%` },
-    { key: 'inset_width', label: 'Reaction box width', type: 'float', min: 0.3, max: 1, step: 0.01, slider: true, show: v => `${Math.round(v * 100)}%`,
+    { key: 'split', label: 'Content height (classic)', type: 'float', min: 0.2, max: 0.8, step: 0.01, slider: true, show: v => `${Math.round(v * 100)}%`, classic: true },
+    { key: 'inset_width', label: 'Reaction box width (classic)', type: 'float', min: 0.3, max: 1, step: 0.01, slider: true, show: v => `${Math.round(v * 100)}%`, classic: true,
       hint: 'Reaction box layout only.' },
-    { key: 'inset_height', label: 'Reaction box height', type: 'float', min: 0.3, max: 1, step: 0.01, slider: true, show: v => `${Math.round(v * 100)}%` },
-    { key: 'inset_radius', label: 'Box corner rounding (px)', type: 'int', min: 0, max: 200 },
-    { key: 'inset_border_px', label: 'Box frame thickness (px)', type: 'int', min: 0, max: 40, hint: '0 = no frame' },
-    { key: 'inset_border_color', label: 'Box frame colour', type: 'str', placeholder: 'white or #ffffff', adv: true },
-    { key: 'inset_background', label: 'Behind the box', type: 'str', placeholder: 'blur', adv: true,
+    { key: 'inset_height', label: 'Reaction box height (classic)', type: 'float', min: 0.3, max: 1, step: 0.01, slider: true, show: v => `${Math.round(v * 100)}%`, classic: true },
+    { key: 'inset_radius', label: 'Box corner rounding (classic, px)', type: 'int', min: 0, max: 200, classic: true },
+    { key: 'inset_border_px', label: 'Box frame thickness (classic, px)', type: 'int', min: 0, max: 40, hint: '0 = no frame', classic: true },
+    { key: 'inset_border_color', label: 'Box frame colour (classic)', type: 'str', placeholder: 'white or #ffffff', adv: true, classic: true },
+    { key: 'inset_background', label: 'Behind the box (classic)', type: 'str', placeholder: 'blur', adv: true, classic: true,
       hint: 'blur = blurred copy of the content, or a colour like black' },
-    { key: 'duration', label: 'Reel length (seconds)', type: 'float', min: 1, max: 180, step: 0.5 },
-    { key: 'watermark', label: 'Watermark text', type: 'str', max: 60, placeholder: '@yourhandle', hint: 'Shown under the divider. Leave empty for none.' },
+    { key: 'duration', label: 'Reel length (classic, seconds)', type: 'float', min: 1, max: 180, step: 0.5, classic: true,
+      hint: 'The movie engine lets each moment decide its length.' },
+    { key: 'watermark', label: 'Watermark text', type: 'str', max: 60, placeholder: '@yourhandle', hint: 'Leave empty for none.' },
     { key: 'watermark_size', label: 'Watermark size', type: 'int', min: 8, max: 200 },
-    { key: 'divider_px', label: 'Divider thickness (px)', type: 'int', min: 0, max: 100, hint: '0 = no line' },
-    { key: 'divider_color', label: 'Divider colour', type: 'str', placeholder: 'white or #ffffff' },
-    { key: 'reaction_crop_x', label: 'Reaction framing: left ↔ right', type: 'float', min: 0, max: 1, step: 0.05, slider: true, show: v => v.toFixed(2) },
+    { key: 'divider_px', label: 'Divider thickness (classic, px)', type: 'int', min: 0, max: 100, hint: '0 = no line', classic: true },
+    { key: 'divider_color', label: 'Divider colour (classic)', type: 'str', placeholder: 'white or #ffffff', classic: true },
+    { key: 'reaction_crop_x', label: 'Reaction framing: left ↔ right', type: 'float', min: 0, max: 1, step: 0.05, slider: true, show: v => v.toFixed(2),
+      hint: 'Used when your face could not be found automatically.' },
     { key: 'reaction_crop_y', label: 'Reaction framing: top ↔ bottom', type: 'float', min: 0, max: 1, step: 0.05, slider: true, show: v => v.toFixed(2) },
-    { key: 'content_crop_x', label: 'Content framing: left ↔ right', type: 'float', min: 0, max: 1, step: 0.05, slider: true, show: v => v.toFixed(2) },
-    { key: 'content_crop_y', label: 'Content framing: top ↔ bottom', type: 'float', min: 0, max: 1, step: 0.05, slider: true, show: v => v.toFixed(2) },
+    { key: 'content_crop_x', label: 'Content framing: left ↔ right (classic)', type: 'float', min: 0, max: 1, step: 0.05, slider: true, show: v => v.toFixed(2), classic: true },
+    { key: 'content_crop_y', label: 'Content framing: top ↔ bottom (classic)', type: 'float', min: 0, max: 1, step: 0.05, slider: true, show: v => v.toFixed(2), classic: true },
     { key: 'width', label: 'Width (px)', type: 'int', min: 240, max: 4096, even: true, adv: true },
     { key: 'height', label: 'Height (px)', type: 'int', min: 240, max: 4096, even: true, adv: true },
-    { key: 'fps', label: 'Frames per second', type: 'int', min: 1, max: 120, adv: true },
+    { key: 'fps', label: 'Frames per second', type: 'int', min: 0, max: 120, adv: true, hint: "0 = keep the movie's own (24 stays 24)" },
     { key: 'crf', label: 'Quality (CRF, lower = better)', type: 'int', min: 0, max: 51, adv: true },
     { key: 'preset', label: 'Encoder speed', type: 'enum', options: PRESETS.map(p => [p, p]), adv: true },
     { key: 'watermark_font', label: 'Watermark font file', type: 'str', adv: true, placeholder: 'auto' },
@@ -547,7 +627,7 @@ const SCHEMA = [
     { key: 'target_lufs', label: 'Loudness target (LUFS)', type: 'float', min: -30, max: -5, step: 0.5 },
     { key: 'bitrate', label: 'Audio bitrate', type: 'str', pattern: /^\d+k$/, patternMsg: 'Looks like 160k', adv: true },
   ]},
-  { section: 'picker', title: 'Picking clips', blurb: 'How moments and reactions are chosen.', fields: [
+  { section: 'picker', title: 'Picking clips', blurb: 'How moments and reactions are chosen. Mostly for the classic engine.', fields: [
     { key: 'selection', label: 'Moment selection', type: 'enum', options: [['random', 'Random'], ['loudest', 'Loudest']],
       hint: 'Loudest prefers the most energetic moments (action, comedy, sport).' },
     { key: 'skip_start', label: 'Never use the first … seconds', type: 'float', min: 0, max: 3600, step: 1 },
@@ -558,10 +638,10 @@ const SCHEMA = [
   ]},
   { section: 'match', title: 'Scene matching', blurb: 'Judge each moment and pick a reaction that fits it.', fields: [
     { key: 'enabled', label: 'Match reactions to scenes', type: 'bool' },
-    { key: 'align_peaks', label: 'Line up the scene peak with my reaction peak', type: 'bool' },
+    { key: 'align_peaks', label: 'Line up the scene peak with my reaction peak (classic)', type: 'bool', classic: true },
     { key: 'judge', label: 'Scene judge', type: 'enum', options: [['auto', 'Auto'], ['gemini', 'Gemini'], ['local', 'Local']],
       hint: 'Auto uses Gemini when the GEMINI_API_KEY secret exists, otherwise loudness and cuts.' },
-    { key: 'beat', label: 'Peak lands at (seconds into the reel)', type: 'float', min: 0.5, max: 120, step: 0.5 },
+    { key: 'beat', label: 'Peak lands at (classic, seconds into the reel)', type: 'float', min: 0.5, max: 120, step: 0.5, classic: true },
     { key: 'moments_per_10min', label: 'Moments to find per 10 minutes', type: 'int', min: 2, max: 60, adv: true },
     { key: 'gemini_models', label: 'Gemini models, tried in order', type: 'str', adv: true },
     { key: 'max_upload_mb', label: 'Largest analysis copy sent to Gemini (MB)', type: 'int', min: 10, max: 2000, adv: true },
@@ -612,7 +692,7 @@ const SCHEMA = [
 ];
 function fieldError(f, v) {
   if (f.type === 'bool') return '';
-  if (f.type === 'enum') return f.options.some(o => o[0] === v) ? '' : 'Pick one of the options';
+  if (f.type === 'enum') return f.options.some(o => String(o[0]) === String(v)) ? '' : 'Pick one of the options';
   if (f.type === 'str') {
     if (f.max && v.length > f.max) return `At most ${f.max} characters`;
     if (f.pattern && !f.pattern.test(v)) return f.patternMsg || 'Invalid value';
@@ -642,6 +722,7 @@ const S = {
           custom: { source: '', start: '', reaction: '', date: '', dry: false } },
   schedEdit: null,
   pubEdit: null, pubDraft: {}, pubAddDate: '',
+  rvEdit: null, rvDraft: {}, rvFilter: 'attention', libOpen: {},
 };
 function loadConn() {
   for (const store of [localStorage, sessionStorage]) {
@@ -761,7 +842,7 @@ async function annotationsFor(run) {
 }
 
 /* ============================================================= dispatching jobs */
-const TASK_LABEL = { 'batch-reels': 'Make all reels', 'make-reels': 'Make reels', 'custom-reel': 'Custom reel', 'refresh-status': 'Refresh status', 'check-setup': 'Check setup', 'reset-source': 'Start video over', publish: 'Publish to YouTube', queue: 'Update queue' };
+const TASK_LABEL = { 'batch-reels': 'Make all reels', 'make-reels': 'Make reels', 'custom-reel': 'Custom reel', 'review-reel': 'Review reel', 'refresh-status': 'Refresh status', 'check-setup': 'Check setup', 'reset-source': 'Start video over', publish: 'Publish to YouTube', queue: 'Update queue' };
 async function dispatch(task, inputs) {
   const clean = { task };
   for (const [k, v] of Object.entries(inputs || {})) {
@@ -782,6 +863,7 @@ async function dispatch(task, inputs) {
   S.live = { task, label: TASK_LABEL[task] || task, inputs: clean, t0, runId, run: null, jobs: [], done: false, annots: [] };
   toast(`${S.live.label} started`);
   renderLive();
+  renderView(true);            // closes editors that started this job right away
   await pollLive();
   schedulePoll();
 }
@@ -918,7 +1000,7 @@ async function refreshAll(first = false) {
 }
 
 /* -------------------------------------------------------------------- shell */
-const TABS = [['overview', 'Overview'], ['make', 'Make'], ['publish', 'Publish'], ['library', 'Library'], ['runs', 'Runs'], ['settings', 'Settings']];
+const TABS = [['overview', 'Overview'], ['make', 'Make'], ['review', 'Review'], ['publish', 'Publish'], ['library', 'Library'], ['runs', 'Runs'], ['settings', 'Settings']];
 function renderShell() {
   const app = $('#app'); app.replaceChildren();
   const themeBtn = h('button', { class: 'iconbtn', title: 'Theme', 'aria-label': 'Change theme', onclick: () => {
@@ -953,16 +1035,18 @@ function refreshDynamic() {
   const rb = $('#refresh-btn');
   if (rb) rb.replaceChildren(S.busy.has('all') ? h('span', { class: 'spin' }) : icon('refresh'));
   renderLive();
-  if (S.tab === 'overview' || S.tab === 'runs' || S.tab === 'library' || (S.tab === 'publish' && !S.pubEdit)) renderView();
+  const rt = $('#tab-review');
+  if (rt) { const n = S.status && S.status.review ? S.status.review.waiting : 0; rt.replaceChildren('Review', n ? h('span', { class: 'badge-n', style: { marginLeft: '6px', height: '20px', minWidth: '20px' } }, n) : ''); }
+  if (S.tab === 'overview' || S.tab === 'runs' || S.tab === 'library' || (S.tab === 'publish' && !S.pubEdit) || (S.tab === 'review' && !S.rvEdit)) renderView();
 }
 function renderView(force = false) {
   const view = $('#view'); if (!view) return;
-  const typing = view.contains(document.activeElement) && (S.tab === 'make' || S.tab === 'settings' || S.tab === 'publish');
+  const typing = view.contains(document.activeElement) && (S.tab === 'make' || S.tab === 'settings' || S.tab === 'publish' || S.tab === 'review');
   if (typing && !force) return;   // background refreshes never rebuild a form someone is using
   const scrollY = window.scrollY;
   view.replaceChildren();
   if (S.error) view.append(h('div', { class: 'banner bad', style: { marginBottom: '16px' } }, icon('alert'), h('div', null, S.error)));
-  ({ overview: renderOverview, make: renderMake, publish: renderPublish, library: renderLibrary, runs: renderRuns, settings: renderSettings }[S.tab])(view);
+  ({ overview: renderOverview, make: renderMake, review: renderReview, publish: renderPublish, library: renderLibrary, runs: renderRuns, settings: renderSettings }[S.tab])(view);
   window.scrollTo({ top: scrollY });
 }
 
@@ -996,7 +1080,9 @@ function renderLive() {
   if (L.inputs.date) details.push(L.inputs.date);
   if (L.inputs.reaction) details.push('reaction: ' + clipName(L.inputs.reaction));
   if (L.inputs.item) details.push(reelLabel(fileName(L.inputs.item)));
-  if (L.task === 'queue' && L.inputs.op) details.push(L.inputs.op);
+  if ((L.task === 'queue' || L.task === 'review-reel') && L.inputs.op) details.push(L.inputs.op);
+  if (L.inputs.reaction_mode && L.inputs.reaction_mode !== 'default') details.push('reaction: ' + L.inputs.reaction_mode);
+  if (L.inputs.options) details.push(L.inputs.options);
   if (L.inputs.dry_run === 'true') details.push('dry run');
   const card = h('div', { class: 'card live ' + cls, style: { marginBottom: '4px' } },
     h('div', { class: 'row wrap between' },
@@ -1044,16 +1130,20 @@ function reelCard(day, reel) {
       reel.emotion ? emoChip(reel.emotion) : null, icon('film')),
     h('div', { class: 'meta' },
       h('div', { class: 'name ellipsis', title: reel.source || '' }, reel.source ? clipName(reel.source) : 'Unknown source'),
-      h('div', { class: 'small muted num' }, reel.start != null ? `${hms(reel.start)}–${hms(reel.end)}` : '', extra ? ' · custom' : ''),
+      h('div', { class: 'small muted num' }, reel.start != null ? `${hms(reel.start)}–${hms(reel.end)}` : '', reel.duration ? ` · ${Math.round(reel.duration)} s` : '', extra ? ' · custom' : ''),
+      reel.engine === 2 ? h('div', { class: 'row wrap', style: { gap: '5px', margin: '3px 0' } }, qcPill(reel.qc), scoreBadge(reel.score)) : null,
       reel.note ? h('div', { class: 'small ellipsis', title: reel.note }, reel.note) : null,
-      h('div', { class: 'small muted ellipsis', title: reel.reaction || '' }, reel.reaction ? 'Reaction: ' + clipName(fileName(reel.reaction)) : ''),
+      h('div', { class: 'small muted ellipsis', title: reel.reaction || reel.reaction_reason || '' }, reel.reaction ? 'Reaction: ' + clipName(fileName(reel.reaction)) : reel.engine === 2 ? 'Clip only' : ''),
       fallback ? h('div', { class: 'tiny', style: { color: 'var(--warn)' } }, `No ${emoLabel(reel.emotion).toLowerCase()} clip yet: used ${emoLabel(reel.matched).toLowerCase()}`) : null,
       ytLine(pubFor(day.date, reel.name)),
       link ? h('a', { class: 'link', href: link, target: '_blank', rel: 'noopener noreferrer', style: { marginTop: '6px' } }, 'Open in Drive', icon('ext')) : null));
 }
 function warningsBanners(view) {
   const st = S.status;
-  const list = [...(st ? st.warnings || [] : [])];
+  const list = [...(st ? st.warnings || [] : [])].filter(w => !/wait for your review/.test(w));
+  if (st && st.review && st.review.waiting) view.append(h('div', { class: 'banner info', style: { marginBottom: '10px' } }, icon('eye'),
+    h('div', { class: 'grow' }, h('strong', null, `${st.review.waiting} reel${st.review.waiting === 1 ? '' : 's'} need${st.review.waiting === 1 ? 's' : ''} a look `), 'before ', st.review.waiting === 1 ? 'it' : 'they', ' can be posted.'),
+    h('button', { class: 'btn sm', onclick: () => { S.rvFilter = 'attention'; gotoTab('review'); } }, 'Review')));
   if (S.workflowState && S.workflowState !== 'active') list.unshift('The daily workflow is disabled on GitHub. Enable it under Actions to run on schedule.');
   if (S.cfgValues['run.paused'] === true) list.unshift('Daily reels are paused. Turn this off in Settings → Schedule.');
   for (const w of list) view.append(h('div', { class: 'banner warn', style: { marginBottom: '10px' } }, icon('alert'), h('div', null, w)));
@@ -1078,8 +1168,10 @@ function renderOverview(view) {
     statCard('Last run', 'play', last ? h('span', null, runPill(last)) : 'None yet',
       last ? `${relTime(last.run_started_at || last.created_at)} · ${last.event === 'schedule' ? 'scheduled' : 'manual'}` : 'Start one from Make',
       last && last.status === 'completed' && last.conclusion !== 'success' ? lastRunError(last) : null),
-    statCard('Fresh material', 'film', t ? `${t.clips_left} clips` : '–',
-      t ? `About ${daysLeft} day${daysLeft === 1 ? '' : 's'} at ${st.config.reels_per_day}/day` + (t.unanalysed_sources ? ` · ${t.unanalysed_sources} not analysed` : '') : '',
+    statCard('Fresh material', 'film', t ? (st.config.engine === 2 ? `${t.clips_left} good moments` : `${t.clips_left} clips`) : '–',
+      t ? (st.config.engine === 2 && st.publish && st.publish.enabled
+        ? `About ${Math.floor(t.clips_left / Math.max(1, st.publish.per_day))} day(s) of posts at ${st.publish.per_day}/day`
+        : `About ${daysLeft} day${daysLeft === 1 ? '' : 's'} at ${st.config.reels_per_day}/day`) + (t.unanalysed_sources ? ` · ${t.unanalysed_sources} not analysed` : '') : '',
       t ? h('div', { class: 'meter ' + meterCls }, h('i', { style: { width: `${Math.min(100, (daysLeft / Math.max(1, low * 2)) * 100)}%` } })) : null),
     statCard('Reactions', 'user', t ? `${t.reactions} clip${t.reactions === 1 ? '' : 's'}` : '–',
       st && st.categories ? `${st.categories.filter(c => c.clips).length} of ${st.categories.length} emotions covered` : (st ? reactNext : ''),
@@ -1187,12 +1279,13 @@ function renderMake(view) {
       h('div', { class: 'field' }, h('label', null, 'Date folder'), dateIn),
       h('div', { class: 'field' }, h('label', null, 'How many'), countIn),
       h('div', { class: 'field' }, h('label', null, 'Reaction'), reactSel)),
+    MOVIE() ? h('div', { style: { marginTop: '14px', maxWidth: '520px' } }, reactionModeControl(D)) : null,
     h('div', { class: 'row wrap', style: { gap: '22px', margin: '16px 0 4px' } },
       h('label', { class: 'switch' }, h('input', { type: 'checkbox', checked: D.force, onchange: e => { D.force = e.target.checked; updateNote(); } }), 'Re-make if they exist'),
       h('label', { class: 'switch' }, h('input', { type: 'checkbox', checked: D.dry, onchange: e => { D.dry = e.target.checked; updateNote(); } }), 'Dry run')),
     dailyNote,
     h('div', { class: 'row', style: { marginTop: '16px' } },
-      taskButton('make-reels', () => ({ date: D.date === today ? '' : D.date, count: D.count, reaction: D.reaction, force: D.force, dry_run: D.dry }), 'Make reels', 'btn primary', 'play'))));
+      taskButton('make-reels', () => ({ date: D.date === today ? '' : D.date, count: D.count, reaction: D.reaction, force: D.force, dry_run: D.dry, reaction_mode: MOVIE() ? D.mode : '' }), 'Make reels', 'btn primary', 'play'))));
 
   /* custom */
   view.append(h('div', { class: 'section-head' }, h('h2', null, 'Custom reel')));
@@ -1209,23 +1302,22 @@ function renderMake(view) {
       taskButton('check-setup', {}, 'Check setup', 'btn'))));
 }
 function batchCard(st) {
-  const B = (S.make.batch ||= { source: '', max: '', dry: false });
+  const B = (S.make.batch ||= { source: '', max: '', dry: false, mode: 'default' });
+  const movie = MOVIE();
   const sources = st ? st.sources.filter(s => !s.exhausted) : [];
-  const selected = sources.find(s => s.name === B.source);
-  const ready = selected ? freeMoments(selected) : sources.reduce((n, s) => n + freeMoments(s), 0);
-  const unanalysed = (selected ? [selected] : sources).filter(s => !s.analysis).length;
   const note = h('div', { class: 'small muted' });
   const paint = () => {
     const sel = sources.find(s => s.name === B.source);
-    const n = sel ? freeMoments(sel) : sources.reduce((k, s) => k + freeMoments(s), 0);
-    const un = (sel ? [sel] : sources).filter(s => !s.analysis).length;
-    note.textContent = (n ? `${n} analysed moment${n === 1 ? '' : 's'} ready` : 'No analysed moments ready') +
+    const n = sel ? goodLeft(sel) : sources.reduce((k, s) => k + goodLeft(s), 0);
+    const un = (sel ? [sel] : sources).filter(s => !s.analysis || (movie && !isMovie(s))).length;
+    note.textContent = (n ? `${n} ${movie ? 'good' : 'analysed'} moment${n === 1 ? '' : 's'} ready` : `No ${movie ? 'good' : 'analysed'} moments ready`) +
       (un ? ` + ${un} video${un === 1 ? '' : 's'} still to analyse (done first, about 1 min per 3 min of video)` : '') +
-      '. Each becomes a 10 s reel with the reaction that fits it.' + (B.dry ? ' Dry run: only shows the plan.' : '');
+      (movie ? '. Each becomes a reel as long as its moment, framed, captioned and checked before it can be posted.'
+        : '. Each becomes a 10 s reel with the reaction that fits it.') + (B.dry ? ' Dry run: only shows the plan.' : '');
   };
   const srcSel = h('select', { class: 'input', onchange: e => { B.source = e.target.value; paint(); } },
     h('option', { value: '' }, `All videos (${sources.length})`),
-    sources.map(s => h('option', { value: s.name }, clipName(s.name) + (s.analysis ? ` · ${freeMoments(s)} moments` : ' · not analysed'))));
+    sources.map(s => h('option', { value: s.name }, clipName(s.name) + (s.analysis && (!movie || isMovie(s)) ? ` · ${goodLeft(s)} moments` : ' · not analysed'))));
   srcSel.value = B.source;
   paint();
   return h('div', { class: 'card' },
@@ -1235,9 +1327,10 @@ function batchCard(st) {
       h('div', { class: 'field', style: { gridColumn: 'span 2' } }, h('label', null, 'Video'), srcSel),
       h('div', { class: 'field' }, h('label', null, 'At most (optional)'),
         h('input', { class: 'input num', type: 'number', min: 1, max: 200, placeholder: 'all', value: B.max, oninput: e => { B.max = e.target.value; } }))),
+    movie ? h('div', { style: { marginTop: '14px', maxWidth: '520px' } }, reactionModeControl(B)) : null,
     h('div', { style: { margin: '12px 0 4px' } }, note),
     h('div', { class: 'row wrap', style: { marginTop: '14px', gap: '16px' } },
-      taskButton('batch-reels', () => ({ source: B.source, count: B.max, dry_run: B.dry }), 'Make all reels', 'btn primary', 'play'),
+      taskButton('batch-reels', () => ({ source: B.source, count: B.max, dry_run: B.dry, reaction_mode: movie ? B.mode : '' }), 'Make all reels', 'btn primary', 'play'),
       h('label', { class: 'switch' }, h('input', { type: 'checkbox', checked: B.dry, onchange: e => { B.dry = e.target.checked; paint(); } }), 'Dry run')));
 }
 function customCard(st, today) {
@@ -1247,6 +1340,7 @@ function customCard(st, today) {
       h('div', { class: 'small' }, S.statusMissing ? 'Run "Refresh status" first.' : 'Add long videos to your Drive folder, then refresh status.'));
   }
   const src = st.sources.find(s => s.name === C.source) || st.sources[0];
+  if (MOVIE() && isMovie(src)) return movieCustomCard(st, src, today);
   const card = h('div', { class: 'card' });
   const scenes = (src.analysis && src.analysis.scenes) || [];
   const draw = () => {
@@ -1322,12 +1416,296 @@ function customCard(st, today) {
   return card;
 }
 
+/* ------------------------------------------------------------ movie engine */
+const TYPE_LABEL = { reveal: 'Reveal', spectacle: 'Spectacle', dialogue: 'Dialogue', emotional: 'Emotional', funny: 'Funny', story: 'Story' };
+const QC = { pass: ['ok', 'Passed'], approved: ['ok', 'Approved'], review: ['warn', 'Needs a look'], reject: ['bad', 'Failed the check'], rejected: ['bad', 'Rejected'] };
+const PLACEMENT = { box: 'box under the movie', bubble: 'round bubble', popin: 'pops in at the big moment' };
+const POSTED = ['scheduled', 'live', 'unlisted', 'private', 'blocked', 'removed'];
+function qcPill(qc) { if (!qc) return null; const [c, t] = QC[qc] || ['idle', qc]; return h('span', { class: 'pill ' + c }, t); }
+function tag(text, title) { return h('span', { class: 'tag', title: title || null }, text); }
+function scoreBadge(score, status) {
+  if (score == null) return null;
+  const v = Math.round(score);
+  return h('span', { class: 'score ' + (status || ''), title: `Score ${v} of 100` },
+    h('span', { class: 'bar' }, h('i', { style: { width: `${Math.max(4, Math.min(100, v))}%` } })), v);
+}
+function isMovie(src) { return !!(src && src.analysis && src.analysis.engine === 2); }
+function goodLeft(src) { return isMovie(src) ? (src.exhausted ? 0 : src.analysis.left || 0) : freeMoments(src); }
+function layoutText(layout) {
+  const parts = String(layout || 'whole').split(',');
+  const map = { whole: 'whole frame', closeup: 'close-up', stack: 'two-shot stack' };
+  return parts.map(p => map[p] || p).join(' + ');
+}
+function segCtl(label, opts, get, set, hint) {
+  const seg = h('div', { class: 'seg', role: 'group', 'aria-label': label });
+  const paint = () => { for (const b of seg.children) b.setAttribute('aria-pressed', String(b.dataset.v === get())); };
+  for (const [v, l] of opts) seg.append(h('button', { type: 'button', dataset: { v }, onclick: () => { set(v); paint(); } }, l));
+  paint();
+  return h('div', { class: 'field' }, h('div', { class: 'lbl' }, label), seg, hint ? h('div', { class: 'hint' }, hint) : null);
+}
+function reactionModeControl(obj) {
+  const def = S.cfgValues['reaction.mode'] || (S.status && S.status.config && S.status.config.reaction_mode) || 'auto';
+  obj.mode ||= 'default';
+  return segCtl('Your reaction', [['default', 'Default'], ['auto', 'Auto'], ['always', 'Always'], ['never', 'Never']],
+    () => obj.mode, v => { obj.mode = v; },
+    `Default follows Settings (now: ${def}). Auto decides per moment; Never makes clip-only reels.`);
+}
+function driveLinkFor(date, reel) {
+  const d = S.status && (S.status.days || []).find(x => x.date === date);
+  const r = d && d.reels.find(x => x.name === reel);
+  return r ? driveHref(r.link) : null;
+}
+
+/* ------------------------------------------------------------------- review */
+function rvOptions(D, it) {
+  const parts = [];
+  if (D.reaction !== 'keep') parts.push(`reaction=${D.reaction}`);
+  if (D.layout !== 'keep') parts.push(`layout=${D.layout}`);
+  if (D.captions !== 'keep') parts.push(`captions=${D.captions}`);
+  if (D.hook !== (it.hook || '')) parts.push(`hook="${D.hook.replace(/"/g, "'")}"`);
+  const st = Number(D.start), en = Number(D.end);
+  if (D.start !== '' && st) parts.push(`start=${st}`);
+  if (D.end !== '' && en) parts.push(`end=${en > 0 ? '+' : ''}${en}`);
+  return parts.join(' ');
+}
+function rvEditor(it) {
+  const D = (S.rvDraft[it.id] ||= { reaction: 'keep', layout: 'keep', captions: 'keep', hook: it.hook || '', start: '', end: '' });
+  const preview = h('div', { class: 'tiny muted' });
+  const paint = () => { const o = rvOptions(D, it); preview.textContent = o ? 'Remake with: ' + o : 'Nothing changed: it is made again with the current settings.'; };
+  paint();
+  const num = (k, ph) => h('input', { class: 'input num', type: 'number', step: 0.5, min: -10, max: 10, placeholder: ph, value: D[k], oninput: e => { D[k] = e.target.value; paint(); } });
+  return h('div', { class: 'editor' },
+    h('div', { class: 'form-grid' },
+      segCtl('Your reaction', [['keep', 'Keep'], ['always', 'On'], ['never', 'Off'], ['auto', 'Auto']], () => D.reaction, v => { D.reaction = v; paint(); }),
+      segCtl('Framing', [['keep', 'Keep'], ['whole', 'Whole frame'], ['auto', 'Smart']], () => D.layout, v => { D.layout = v; paint(); },
+        'Whole frame never crops the movie.'),
+      segCtl('Captions', [['keep', 'Keep'], ['on', 'On'], ['off', 'Off']], () => D.captions, v => { D.captions = v; paint(); })),
+    h('div', { class: 'form-grid' },
+      h('div', { class: 'field' }, h('label', null, 'Hook line (first 2 s)'),
+        h('input', { class: 'input', maxlength: 60, value: D.hook, placeholder: 'empty = no hook line', oninput: e => { D.hook = e.target.value; paint(); } })),
+      h('div', { class: 'field' }, h('label', null, 'Move the start (s)'), num('start', '-1 = earlier'),
+        h('div', { class: 'hint' }, 'Negative starts earlier.')),
+      h('div', { class: 'field' }, h('label', null, 'Move the end (s)'), num('end', '+1 = later'),
+        h('div', { class: 'hint' }, 'Positive ends later.'))),
+    preview,
+    h('div', { class: 'row wrap' },
+      taskButton('review-reel', () => { const o = rvOptions(D, it); S.rvEdit = null; delete S.rvDraft[it.id]; return { op: 'remake', item: it.id, options: o }; },
+        'Remake this reel', 'btn primary sm', 'refresh'),
+      h('button', { class: 'btn sm ghost', onclick: () => { S.rvEdit = null; delete S.rvDraft[it.id]; renderView(true); } }, 'Cancel')));
+}
+function rvRow(row) {
+  const q = pubFor(row.date, row.reel);
+  const it = q ? { ...row, title: q.title || row.title, post: q.status, url: q.url || row.url } : row;
+  const img = h('img', { alt: '', loading: 'lazy', hidden: true });
+  const pic = it.strip || it.thumb;
+  if (pic) thumbUrl(pic).then(u => { if (u) { img.src = u; img.hidden = false; } });
+  const posted = POSTED.includes(it.post);
+  const drive = driveLinkFor(it.date, it.reel), yt = ytHref(it.url);
+  const actions = [];
+  if (!posted) {
+    if (['review', 'reject', 'rejected'].includes(it.qc)) actions.push(taskButton('review-reel', { op: 'approve', item: it.id }, 'Approve', 'btn sm primary', 'thumb'));
+    actions.push(h('button', { class: 'btn sm', onclick: () => { S.rvEdit = S.rvEdit === it.id ? null : it.id; renderView(true); } }, icon('wand'), 'Remake…'));
+    if (it.qc !== 'rejected') {
+      const rej = taskButton('review-reel', { op: 'reject', item: it.id }, 'Reject', 'btn sm ghost', 'ban');
+      rej.addEventListener('click', ev => { if (!confirm('Reject this reel? It will not be posted (you can approve it later).')) ev.stopImmediatePropagation(); }, { capture: true });
+      actions.push(rej);
+    }
+  }
+  if (drive) actions.push(h('a', { class: 'btn sm ghost', href: drive, target: '_blank', rel: 'noopener noreferrer' }, icon('eye'), 'Watch'));
+  if (yt) actions.push(h('a', { class: 'btn sm ghost', href: yt, target: '_blank', rel: 'noopener noreferrer' }, icon('yt'), 'On YouTube'));
+  const reasons = (it.qc_reasons || []).filter(r => !(it.ai_summary && /^Gemini \(\d+\/100\)/.test(r)));
+  return h('div', { class: 'rv' },
+    h('div', null, h('div', { class: 'strip' + (it.strip ? '' : ' one') }, img),
+      it.strip ? h('div', { class: 'tiny faint', style: { marginTop: '4px' } }, 'start · big moment · end') : null),
+    h('div', { style: { minWidth: 0 } },
+      h('div', { class: 't', style: { fontWeight: 650, overflowWrap: 'anywhere' } }, it.title || `${clipName(it.source)} · ${reelLabel(it.reel)}`),
+      h('div', { class: 'small muted' }, [it.title ? clipName(it.source) : null, `${hms(it.start)}–${hms(it.end)}`, it.duration ? `${Math.round(it.duration)} s` : null, it.date].filter(Boolean).join(' · ')),
+      h('div', { class: 'row wrap', style: { gap: '6px', marginTop: '8px' } },
+        qcPill(it.qc), it.post && !['review', 'rejected'].includes(it.post) ? pubPill({ status: it.post }) : null, scoreBadge(it.score),
+        it.type ? tag(TYPE_LABEL[it.type] || it.type) : null, it.emotion ? emoChip(it.emotion) : null,
+        tag(layoutText(it.layout)), it.captions ? tag(`${it.captions} caption${it.captions === 1 ? '' : 's'}`) : null),
+      h('div', { class: 'small', style: { marginTop: '8px' } },
+        it.reaction_on ? `Your reaction: ${PLACEMENT[it.placement] || it.placement || 'on'} · ${clipName(fileName(it.reaction))}` : 'Clip only',
+        it.reaction_reason ? h('span', { class: 'muted' }, ` (${it.reaction_reason})`) : null),
+      it.hook ? h('div', { class: 'small muted' }, `Hook: “${it.hook}”`) : null,
+      it.note ? h('div', { class: 'small muted ellipsis', title: it.note }, it.note) : null,
+      reasons.length ? h('ul', { class: 'reasons' }, reasons.map(r => h('li', null, r))) : null,
+      it.ai_summary ? h('div', { class: 'ai' }, h('strong', null, `Gemini${it.ai_score != null ? ` ${it.ai_score}/100` : ''}: `), it.ai_summary) : null,
+      S.rvEdit === it.id ? rvEditor(it) : null,
+      actions.length ? h('div', { class: 'pub-actions' }, actions) : null));
+}
+function renderReview(view) {
+  const st = S.status, R = st && st.review;
+  const movie = MOVIE();
+  if (!R || !R.items.length) {
+    view.append(h('div', { class: 'empty' }, h('h3', null, 'Nothing to review yet'),
+      h('div', { class: 'small' }, movie ? 'Reels from the movie engine show up here with their checks after the next run.'
+        : 'Review works with the movie engine. Switch it on in Settings → Moments.'),
+      h('div', { style: { marginTop: '14px' } }, movie ? taskButton('batch-reels', {}, 'Make all reels', 'btn primary sm', 'play')
+        : h('button', { class: 'btn sm primary', onclick: () => gotoTab('settings') }, 'Open Settings'))));
+    return;
+  }
+  const busy = S.live && !S.live.done;
+  if (busy) view.append(h('div', { class: 'banner info', style: { marginBottom: '14px' } }, icon('info'), h('div', null, 'A job is running. Your next change starts when it finishes.')));
+  const items = R.items;
+  const posted = x => POSTED.includes(x.post);
+  const groups = {
+    attention: items.filter(x => ['review', 'reject'].includes(x.qc) && !posted(x)),
+    all: items,
+    passed: items.filter(x => ['pass', 'approved'].includes(x.qc)),
+    rejected: items.filter(x => ['reject', 'rejected'].includes(x.qc)),
+  };
+  view.append(h('div', { class: 'card' },
+    h('div', { class: 'row wrap between' },
+      h('div', null, h('h2', null, 'Review'),
+        h('div', { class: 'small muted' }, R.gate === 'pass' ? 'Only reels that pass the checks, or that you approve, are posted.' : 'Every reel except rejected ones is posted.',
+          R.ai_review ? ' Gemini watches each finished reel.' : ' Measured checks only (Gemini review is off).')),
+      h('button', { class: 'btn sm ghost', onclick: () => gotoTab('settings') }, 'Check settings')),
+    h('div', { class: 'kv' },
+      h('div', null, h('div', { class: 'k' }, 'Needs a look'), h('div', { class: 'v num', style: { color: groups.attention.length ? 'var(--warn)' : '' } }, groups.attention.length)),
+      h('div', null, h('div', { class: 'k' }, 'Passed or approved'), h('div', { class: 'v num' }, groups.passed.length)),
+      h('div', null, h('div', { class: 'k' }, 'Rejected'), h('div', { class: 'v num' }, groups.rejected.length)),
+      h('div', null, h('div', { class: 'k' }, 'Average score'), h('div', { class: 'v num' },
+        items.some(x => x.score != null) ? Math.round(items.filter(x => x.score != null).reduce((a, x) => a + x.score, 0) / items.filter(x => x.score != null).length) : '–')))));
+  if (!groups[S.rvFilter]) S.rvFilter = 'attention';
+  if (S.rvFilter === 'attention' && !groups.attention.length) S.rvFilter = 'all';
+  view.append(h('div', { style: { margin: '18px 0 12px', maxWidth: '560px' } },
+    segCtl('Show', [['attention', `Needs a look (${groups.attention.length})`], ['all', `All (${items.length})`], ['passed', 'Passed'], ['rejected', 'Rejected']],
+      () => S.rvFilter, v => { S.rvFilter = v; S.rvEdit = null; renderView(true); })));
+  const list = groups[S.rvFilter];
+  if (!list.length) view.append(h('div', { class: 'empty' }, h('h3', null, S.rvFilter === 'attention' ? 'All clear' : 'None here'),
+    h('div', { class: 'small' }, S.rvFilter === 'attention' ? 'Every reel passed its checks.' : '')));
+  else view.append(h('div', { class: 'card' }, list.slice(0, 60).map(rvRow)));
+}
+
+function movieCustomCard(st, src, today) {
+  const C = S.make.custom;
+  C.length ||= '';
+  const card = h('div', { class: 'card' });
+  const moments = src.analysis.moments || [];
+  const draw = () => {
+    const d = src.duration;
+    const start = parseHms(C.start);
+    const hit = C.start.trim() && !Number.isNaN(start) ? moments.find(m => start >= m.start - 1 && start <= m.end && m.status !== 'rejected') : null;
+    const len = hit ? hit.end - hit.start : Number(C.length || 10);
+    const a = hit ? hit.start : start, b = hit ? hit.end : start + len;
+    let msg = null, ok = false;
+    if (C.start.trim() === '') { ok = true; msg = 'Leave empty to make the best free moment (near misses included).'; }
+    else if (Number.isNaN(start)) msg = 'Use seconds (76) or minutes:seconds (1:16).';
+    else if (d != null && start > d - 1) msg = `Too late: the video is ${hms(d)} long.`;
+    else if (!hit && !(len >= 2 && len <= 60)) msg = 'Length must be 2–60 seconds.';
+    else if ((src.segments || []).some(([x, y]) => a < y && x < b)) msg = `${hms(a)}–${hms(b)} overlaps a reel already made from this video.`;
+    else { ok = true; msg = hit ? `The analysed moment ${hms(hit.start)}–${hms(hit.end)} (${Math.round(len)} s)${hit.note ? ': ' + hit.note : ''}.` : `Your own window ${hms(a)}–${hms(b)}.`; }
+    const srcSel = h('select', { class: 'input', onchange: e => { C.source = e.target.value; C.start = ''; renderView(true); } },
+      st.sources.map(s => h('option', { value: s.name }, clipName(s.name) + (isMovie(s) ? ` · ${goodLeft(s)} good left` : ''))));
+    srcSel.value = src.name;
+    const startIn = h('input', { class: 'input num' + (ok ? '' : ' bad'), placeholder: 'e.g. 1:16', value: C.start, inputmode: 'decimal', id: 'c-start',
+      oninput: e => { C.start = e.target.value; const pos = e.target.selectionStart; draw(); const n = $('#c-start'); if (n) { n.focus(); n.setSelectionRange(pos, pos); } } });
+    const reactSel = h('select', { class: 'input', onchange: e => { C.reaction = e.target.value; } }, reactionOptions(st, 'Match the moment (automatic)'));
+    reactSel.value = C.reaction;
+    let tl = null;
+    if (d) {
+      const bar = momentsBar(src);
+      const track = bar.firstChild;
+      track.style.cursor = 'crosshair';
+      track.addEventListener('click', e => {
+        const r = track.getBoundingClientRect(); const t = ((e.clientX - r.left) / r.width) * d;
+        const m = moments.find(x => t >= x.start && t <= x.end);
+        C.start = hms(Math.round(m ? m.start : t)); draw();
+      });
+      if (C.start.trim() && !Number.isNaN(start) && start <= d)
+        track.append(h('div', { class: 'sel' + (ok ? '' : ' bad'), style: { left: `${(a / d) * 100}%`, width: `${Math.max(1, ((Math.min(b, d) - a) / d) * 100)}%` } }));
+      tl = h('div', null, bar, h('div', { class: 'tl-scale' }, h('span', null, '0:00'), h('span', null, hms(d / 2)), h('span', null, hms(d))));
+    }
+    const free = moments.filter(m => !m.used && m.status !== 'rejected');
+    card.replaceChildren(
+      h('div', { class: 'small muted', style: { marginBottom: '14px' } }, 'Pick a moment yourself, including near misses the automatic runs skip. It is saved as an extra reel and checked like the others.'),
+      h('div', { class: 'form-grid' }, h('div', { class: 'field', style: { gridColumn: '1/-1' } }, h('label', null, 'Video'), srcSel)),
+      tl ? h('div', { style: { margin: '14px 0' } }, tl) : null,
+      free.length ? h('div', { style: { margin: '0 0 16px' } },
+        h('div', { class: 'small', style: { fontWeight: 600, marginBottom: '8px' } }, `Free moments (${free.length})`),
+        h('div', { class: 'scenes' }, free.map(m => {
+          const on = hit && hit.start === m.start;
+          return h('button', { type: 'button', class: 'scene' + (on ? ' on' : ''), title: m.note || '', onclick: () => { C.start = hms(m.start); draw(); } },
+            h('span', { class: 'num small', style: { fontWeight: 650 } }, hms(m.start)), scoreBadge(m.score, m.status),
+            m.type ? h('span', { class: 'small muted' }, TYPE_LABEL[m.type] || m.type) : null,
+            m.note ? h('span', { class: 'small muted ellipsis', style: { maxWidth: '200px' } }, m.note) : null);
+        }))) : h('div', { class: 'small muted', style: { marginBottom: '14px' } }, 'No free analysed moments: type a start time to use your own window.'),
+      h('div', { class: 'form-grid' },
+        h('div', { class: 'field' }, h('label', { for: 'c-start' }, 'Start time'), startIn, h('div', { class: ok ? 'hint' : 'err' }, msg)),
+        hit ? null : h('div', { class: 'field' }, h('label', null, 'Length (s)'),
+          h('input', { class: 'input num', type: 'number', min: 2, max: 60, step: 1, placeholder: '10', value: C.length, oninput: e => { C.length = e.target.value; }, onchange: () => draw() })),
+        h('div', { class: 'field' }, h('label', null, 'Reaction clip'), reactSel),
+        h('div', { class: 'field' }, h('label', null, 'Date folder'), h('input', { class: 'input', type: 'date', value: C.date, onchange: e => { C.date = e.target.value; } }))),
+      h('div', { style: { marginTop: '14px', maxWidth: '520px' } }, reactionModeControl(C)),
+      h('div', { class: 'row wrap', style: { marginTop: '16px', gap: '16px' } },
+        (() => { const b2 = taskButton('custom-reel', () => ({ source: src.name, start: C.start, reaction: C.reaction, date: C.date === today ? '' : C.date, dry_run: C.dry,
+          reaction_mode: C.mode, options: !hit && C.start.trim() && C.length ? `length=${Number(C.length)}` : '' }), 'Make custom reel', 'btn primary', 'wand'); if (!ok) b2.disabled = true; return b2; })(),
+        h('label', { class: 'switch' }, h('input', { type: 'checkbox', checked: C.dry, onchange: e => { C.dry = e.target.checked; } }), 'Dry run')));
+  };
+  draw();
+  return card;
+}
+
 /* ------------------------------------------------------------------ library */
+function momentsBar(src) {
+  const d = src.duration, a = src.analysis;
+  if (!d) return null;
+  const col = m => m.used ? 'var(--used)' : m.status === 'good' ? 'var(--ok)' : m.status === 'near' ? 'var(--warn)' : 'var(--faint)';
+  return h('div', null,
+    h('div', { class: 'tl', style: { height: '18px', marginTop: '8px', cursor: 'default' }, role: 'img', 'aria-label': 'Moments along the video' },
+      (a.exclude || []).map(x => h('div', { class: 'used', style: { left: `${(x.start / d) * 100}%`, width: `${Math.max(0.4, ((x.end - x.start) / d) * 100)}%`, background: 'var(--border-strong)' }, title: `Left out: ${x.what || 'logo or card'}` })),
+      (a.moments || []).map(m => h('div', { class: 'rng', title: `${hms(m.start)}–${hms(m.end)} · ${m.status}${m.used ? ' (made)' : ''}`,
+        style: { left: `${(m.start / d) * 100}%`, width: `${Math.max(0.6, ((m.end - m.start) / d) * 100)}%`, background: col(m) } }))),
+    h('div', { class: 'legend', style: { marginTop: '6px' } },
+      h('span', null, h('i', { style: { background: 'var(--ok)' } }), 'Good'),
+      h('span', null, h('i', { style: { background: 'var(--warn)' } }), 'Near miss'),
+      h('span', null, h('i', { style: { background: 'var(--used)' } }), 'Made'),
+      h('span', null, h('i', { style: { background: 'var(--border-strong)' } }), 'Left out')));
+}
+function momentRow(src, m) {
+  const label = m.used ? 'Made' : m.status === 'good' ? (m.next ? 'Next up' : 'Good') : m.status === 'near' ? 'Near miss' : m.status === 'weak' ? 'Weak' : 'Rejected';
+  const cls = m.used ? 'idle' : m.status === 'good' ? 'ok' : m.status === 'near' ? 'warn' : m.status === 'rejected' ? 'bad' : 'idle';
+  let act = null;
+  if (m.used && m.reel) act = h('button', { class: 'btn sm ghost', onclick: () => { S.rvFilter = 'all'; gotoTab('review'); } }, 'See reel');
+  else if (!m.used && m.status !== 'rejected') {
+    act = taskButton('custom-reel', { source: src.name, start: String(m.start) }, m.status === 'good' ? 'Make this' : 'Make anyway', 'btn sm' + (m.status === 'good' ? '' : ' ghost'), 'wand');
+  }
+  const why = m.reject || [m.hook_text ? `Hook: “${m.hook_text}”` : '', m.reaction_fit === 'off' ? `clip only: ${m.reaction_reason || 'needs the whole screen'}` : '',
+    m.needs_context ? 'needs context' : ''].filter(Boolean).join(' · ');
+  return h('div', { class: 'mom' + (m.used ? ' used' : '') },
+    h('div', { class: 'when' }, `${hms(m.start)}–${hms(m.end)}`, h('div', { class: 'tiny muted', style: { fontWeight: 500 } }, `${Math.round(m.end - m.start)} s`)),
+    h('div', { class: 'what' },
+      h('div', { class: 'row wrap', style: { gap: '6px' } }, h('span', { class: 'pill ' + cls }, label), scoreBadge(m.score, m.status),
+        m.type ? tag(TYPE_LABEL[m.type] || m.type) : null, m.emotion ? emoChip(m.emotion) : null),
+      m.note ? h('div', { class: 'small ellipsis', title: m.note, style: { marginTop: '3px' } }, m.note) : null),
+    h('div', { class: 'act' }, act),
+    why ? h('div', { class: 'why' }, why) : null);
+}
+function movieAnalysis(s) {
+  const a = s.analysis, c = a.counts || {};
+  const open = !!S.libOpen[s.name];
+  const kind = { trailer: 'Trailer', scene: 'Scene', film: 'Film', other: 'Video' }[a.kind] || 'Video';
+  return h('div', null,
+    h('div', { class: 'row wrap', style: { gap: '6px', marginTop: '8px' } },
+      tag(kind + (a.title ? ` · ${a.title}` : '')),
+      c.good ? h('span', { class: 'pill ok' }, `${c.good} good`) : null,
+      c.near ? h('span', { class: 'pill warn' }, `${c.near} near miss${c.near === 1 ? '' : 'es'}`) : null,
+      c.rejected ? h('span', { class: 'pill idle' }, `${c.rejected} left out`) : null,
+      h('span', { class: 'tiny muted' }, `${a.made} of max ${a.cap} made · ${String(a.by || '').startsWith('gemini') ? 'Gemini' : 'local analysis'}`)),
+    momentsBar(s),
+    a.note ? h('div', { class: 'tiny muted', style: { marginTop: '4px' } }, a.note) : null,
+    h('details', { class: 'adv', style: { marginTop: '8px' }, open: open ? true : null,
+      ontoggle: e => { S.libOpen[s.name] = e.target.open; } },
+      h('summary', null, `Moments (${(a.moments || []).length})`, icon('down')),
+      h('div', { class: 'moments' }, (a.moments || []).map(m => momentRow(s, m)))));
+}
+
 /* ------------------------------------------------------------------ publish */
 const PUB_STATUS = {
   scheduled: ['run', 'Scheduled'], live: ['ok', 'Live'], unlisted: ['idle', 'Unlisted'], private: ['warn', 'Private'],
   queued: ['idle', 'Waiting'], held: ['warn', 'On hold'], failed: ['bad', 'Failed'], blocked: ['bad', 'Blocked'],
-  removed: ['idle', 'Removed'], skipped: ['idle', 'Skipped'],
+  removed: ['idle', 'Removed'], skipped: ['idle', 'Skipped'], review: ['warn', 'Needs review'], rejected: ['bad', 'Rejected'],
 };
 function pubFor(date, reel) {
   const P = S.status && S.status.publish;
@@ -1449,6 +1827,10 @@ function pubRow(it) {
   }
   if (it.status === 'failed') actions.unshift(taskButton('queue', { op: 'retry', item: it.id }, 'Try again', 'btn sm primary', 'refresh'));
   if (it.status === 'held') actions.push(taskButton('queue', { op: 'resume', source: it.source }, 'Resume this video', 'btn sm', 'play'));
+  if (it.status === 'review' || it.status === 'rejected') {
+    actions.push(taskButton('review-reel', { op: 'approve', item: it.id }, 'Approve', 'btn sm primary', 'thumb'));
+    actions.push(h('button', { class: 'btn sm', onclick: () => { S.rvFilter = 'attention'; gotoTab('review'); } }, icon('eye'), 'Open in Review'));
+  }
   if (it.status === 'skipped' || it.status === 'removed') actions.push(taskButton('queue', { op: 'unskip', item: it.id }, 'Queue again', 'btn sm', 'refresh'));
   if (href) actions.push(h('a', { class: 'btn sm', href, target: '_blank', rel: 'noopener noreferrer' }, icon('yt'), 'Watch'));
   if (vid) actions.push(h('a', { class: 'btn sm ghost', href: `https://studio.youtube.com/video/${vid}/edit`, target: '_blank', rel: 'noopener noreferrer' }, 'Studio', icon('ext')));
@@ -1462,6 +1844,7 @@ function pubRow(it) {
         it.at ? h('span', { class: 'small muted num' }, whenText(it.at, it.status === 'queued')) : null,
         by ? h('span', { class: 'tiny faint' }, by) : null),
       it.error ? h('div', { class: 'small', style: { color: 'var(--bad)', marginTop: '6px' } }, it.error) : null,
+      (it.status === 'review' || it.status === 'rejected') && (it.qc_reasons || []).length ? h('div', { class: 'small', style: { color: 'var(--warn)', marginTop: '6px' } }, it.qc_reasons.join(' · ')) : null,
       S.pubEdit === it.id ? pubEditor(it) : null,
       actions.length ? h('div', { class: 'pub-actions' }, actions) : null));
 }
@@ -1496,7 +1879,10 @@ function renderPublish(view) {
   const posted = items.filter(i => ['live', 'unlisted', 'private', 'blocked', 'removed'].includes(i.status)).sort(byAt).reverse().slice(0, 40);
   const skipped = items.filter(i => i.status === 'skipped');
 
+  const review = items.filter(i => i.status === 'review' || i.status === 'rejected');
   pubSection(view, 'Scheduled on YouTube', scheduled, 'Goes live at the time shown');
+  pubSection(view, 'Waiting for your review', review, 'Posted once you approve them',
+    h('button', { class: 'btn sm ghost', onclick: () => { S.rvFilter = 'attention'; gotoTab('review'); } }, 'Open Review'));
   pubSection(view, 'Waiting to post', waiting, P.connected ? 'In posting order: videos take turns' : 'Posts once YouTube is connected',
     waiting.some(i => i.by !== 'you') ? taskButton('queue', { op: 'rewrite', item: 'all' }, 'New AI titles for all', 'btn sm ghost', 'wand') : null);
   if (!items.length) view.append(h('div', { class: 'empty', style: { marginTop: '16px' } }, h('h3', null, 'The queue is empty'),
@@ -1525,6 +1911,7 @@ function renderPublish(view) {
 }
 
 function sourceAnalysis(s) {
+  if (isMovie(s)) return movieAnalysis(s);
   const a = s.analysis;
   if (!a) return h('div', { class: 'tiny faint', style: { marginTop: '6px' } }, 'Moments not analysed yet: this happens the first time the video is used, or with Refresh status.');
   const counts = {};
@@ -1562,8 +1949,8 @@ function renderLibrary(view) {
     return h('div', { class: 'item', style: { alignItems: 'flex-start' } },
       h('div', { class: 'grow' },
         h('div', { class: 't ellipsis', title: s.name }, clipName(s.name)),
-        h('div', { class: 'small muted num' }, [d ? hms(d) : 'not analysed', `${s.uses} used`, s.exhausted ? 'used up' : s.clips_left != null ? `~${s.clips_left} clips left` : null, bytes(s.size)].filter(Boolean).join(' · ')),
-        bar, sourceAnalysis(s)),
+        h('div', { class: 'small muted num' }, [d ? hms(d) : 'not analysed', `${s.uses} used`, s.exhausted ? 'used up' : s.clips_left != null ? (isMovie(s) ? `${s.clips_left} good moment${s.clips_left === 1 ? '' : 's'} left` : `~${s.clips_left} clips left`) : null, bytes(s.size)].filter(Boolean).join(' · ')),
+        isMovie(s) ? null : bar, sourceAnalysis(s)),
       h('div', { class: 'row', style: { flex: 'none' } },
         !s.exhausted && d ? h('button', { class: 'btn sm', onclick: () => { S.make.custom.source = s.name; S.make.custom.start = ''; gotoTab('make'); } }, icon('wand'), h('span', { class: 'hide-sm' }, 'Custom')) : null,
         s.uses ? (() => { const b = taskButton('reset-source', { source: s.name }, 'Start over', 'btn sm ghost', 'refresh');
@@ -1591,7 +1978,7 @@ function renderLibrary(view) {
       h('div', { class: 'grow' },
         h('div', { class: 'row', style: { gap: '8px' } }, h('span', { class: 't' }, `${x.date} · ${String(x.reel).replace('.mp4', '').replace('_', ' ')}`), x.emotion ? emoChip(x.emotion) : null),
         h('div', { class: 'small muted ellipsis', title: x.source }, `${clipName(x.source)} @ ${hms(x.start)}–${hms(x.end)}`),
-        h('div', { class: 'small muted ellipsis', title: x.reaction }, 'Reaction: ' + clipName(fileName(x.reaction)) + (x.note ? ` · ${x.note}` : ''))));
+        h('div', { class: 'small muted ellipsis', title: x.reaction || '' }, (x.reaction ? 'Reaction: ' + clipName(fileName(x.reaction)) : 'Clip only') + (x.note ? ` · ${x.note}` : ''))));
   }))));
 }
 
@@ -1652,13 +2039,13 @@ function fieldControl(section, f) {
   }
   if (f.type === 'enum' && f.options.length <= 3) {
     const seg = h('div', { class: 'seg', role: 'group', 'aria-label': f.label });
-    const paint = cur => { for (const b of seg.children) b.setAttribute('aria-pressed', String(b.dataset.v === cur)); };
-    for (const [val, label] of f.options) seg.append(h('button', { type: 'button', dataset: { v: val }, onclick: () => { set(val); paint(val); } }, label));
+    const paint = cur => { for (const b of seg.children) b.setAttribute('aria-pressed', String(b.dataset.v === String(cur))); };
+    for (const [val, label] of f.options) seg.append(h('button', { type: 'button', dataset: { v: String(val) }, onclick: () => { set(val); paint(val); } }, label));
     paint(v);
     control = seg;
   } else if (f.type === 'enum') {
-    control = h('select', { class: 'input', onchange: e => set(e.target.value) }, f.options.map(([val, label]) => h('option', { value: val }, label)));
-    control.value = v;
+    control = h('select', { class: 'input', onchange: e => set(f.num ? Number(e.target.value) : e.target.value) }, f.options.map(([val, label]) => h('option', { value: String(val) }, label)));
+    control.value = String(v);
   } else if (f.slider) {
     const out = h('output', null, f.show ? f.show(Number(v)) : v);
     control = h('div', { class: 'range' }, h('input', { type: 'range', min: f.min, max: f.max, step: f.step, value: v,
@@ -1685,7 +2072,7 @@ async function saveConfig(changes, message) {
   for (const [k, val] of Object.entries(changes)) {
     const [section, key] = k.split('.');
     const f = (SCHEMA.find(s => s.section === section) || { fields: [] }).fields.find(x => x.key === key) || { type: typeof val === 'boolean' ? 'bool' : 'str' };
-    text = tomlSet(text, section, key, val, f.type);
+    text = tomlSet(text, section, key, val, f.num ? 'int' : f.type);
   }
   try { await putFile('config.toml', text, S.cfgSha, message); }
   catch (e) {
@@ -1699,12 +2086,16 @@ function renderSettings(view) {
   if (!S.cfgText) { view.append(h('div', { class: 'empty' }, h('h3', null, 'config.toml not found'), h('div', { class: 'small' }, 'Push the latest project code to your repository.'))); return; }
   view.append(scheduleCard());
   for (const sec of SCHEMA) {
-    const basic = sec.fields.filter(f => !f.adv && !sec.adv), adv = sec.fields.filter(f => f.adv || sec.adv);
+    const hideClassic = f => f.classic && MOVIE();
+    const basic = sec.fields.filter(f => !f.adv && !sec.adv && !hideClassic(f)), adv = sec.fields.filter(f => f.adv || sec.adv || hideClassic(f));
     const keyNote = sec.section === 'match' && S.status && S.status.config ? (S.status.config.gemini_key
       ? h('div', { class: 'banner info', style: { marginBottom: '14px' } }, icon('check'), h('div', null, 'Gemini key connected: scenes are judged by AI.'))
       : h('div', { class: 'banner warn', style: { marginBottom: '14px' } }, icon('key'), h('div', null,
           'No Gemini key yet, so emotions are mostly unknown. Get a free key at aistudio.google.com/apikey and add it as the ',
           h('a', { class: 'link', href: ghHref(`${S.repo.html_url}/settings/secrets/actions/new`) || '#', target: '_blank', rel: 'noopener noreferrer' }, 'GEMINI_API_KEY secret', icon('ext')), '.'))) : null;
+    const aiNote = ['layout', 'captions', 'quality'].includes(sec.section) && S.status && S.status.config && !S.status.config.gemini_key
+      ? h('div', { class: 'banner warn', style: { marginBottom: '14px' } }, icon('key'), h('div', null,
+          'Close-ups, captions and the Gemini check need the free GEMINI_API_KEY secret. Without it reels use the whole frame and measured checks only.')) : null;
     const pubNote = sec.section === 'publish' && S.status && S.status.publish ? (S.status.publish.connected
       ? h('div', { class: 'banner info', style: { marginBottom: '14px' } }, icon('check'), h('div', null,
           'YouTube connected' + (S.status.publish.channel ? `: ${S.status.publish.channel.title}` : '') + '.'))
@@ -1712,10 +2103,10 @@ function renderSettings(view) {
           'YouTube is not connected yet. ', h('a', { class: 'link', href: '#', onclick: e => { e.preventDefault(); gotoTab('publish'); } }, 'How to connect →')))) : null;
     const body = h('div', { class: 'card' },
       h('div', { style: { marginBottom: '14px' } }, h('h2', null, sec.title), sec.blurb ? h('div', { class: 'small muted' }, sec.blurb) : null),
-      keyNote, pubNote,
+      keyNote, pubNote, aiNote,
       basic.length ? h('div', { class: 'form-grid' }, basic.map(f => fieldControl(sec.section, f))) : null,
       adv.length ? h('details', { class: 'adv', style: { marginTop: basic.length ? '18px' : 0 } },
-        h('summary', null, sec.adv ? 'Show storage settings' : 'Advanced', icon('down')),
+        h('summary', null, sec.adv ? 'Show storage settings' : adv.some(hideClassic) ? 'Advanced and classic engine' : 'Advanced', icon('down')),
         h('div', { class: 'form-grid', style: { marginTop: '14px' } }, adv.map(f => fieldControl(sec.section, f)))) : null);
     view.append(h('div', { style: { marginTop: '14px' } }, body));
   }
