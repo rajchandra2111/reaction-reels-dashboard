@@ -1300,12 +1300,20 @@ function addVideoCard(compact = false) {
       movie ? reactionModeControl(A) : null,
       h('div', { class: 'field' }, h('label', null, 'At most this many reels now'),
         h('input', { class: 'input num', type: 'number', min: 1, max: 50, placeholder: 'all good moments', value: A.max, oninput: e => { A.max = e.target.value; } }))));
+  const cfgSt = S.status && S.status.config;
+  const needCookies = cfgSt && cfgSt.ytdlp_cookies === false;
+  const setup = needCookies ? h('div', { class: 'banner warn', style: { marginTop: '12px' } }, icon('key'), h('div', null,
+    h('strong', null, 'One-time setup: '), 'YouTube blocks downloads from GitHub unless you add the ',
+    h('span', { class: 'mono' }, 'YTDLP_COOKIES'), ' secret (cookies of a spare YouTube account, 5 minutes). ',
+    S.repo && ghHref(`${S.repo.html_url}#phase-10---add-videos-by-link`) ? h('a', { class: 'link', href: ghHref(`${S.repo.html_url}#phase-10---add-videos-by-link`), target: '_blank', rel: 'noopener noreferrer' }, 'How', icon('ext')) : null,
+    ' · ',
+    S.repo && ghHref(`${S.repo.html_url}/settings/secrets/actions/new`) ? h('a', { class: 'link', href: ghHref(`${S.repo.html_url}/settings/secrets/actions/new`), target: '_blank', rel: 'noopener noreferrer' }, 'Add secret', icon('ext')) : null)) : null;
   return h('div', { class: 'card', style: compact ? { marginBottom: '14px' } : null },
     h('div', { class: 'row', style: { marginBottom: '10px' } }, h('div', { class: 'yt-mark', style: { width: '32px', height: '32px', borderRadius: '9px' } }, icon('yt')),
       h('div', null, h('h2', null, 'Add a video by link'), compact ? null : h('div', { class: 'small muted' }, 'The fastest way in: one link, and the rest happens on its own.'))),
     h('div', { class: 'row', style: { gap: '8px', alignItems: 'stretch' } }, h('div', { class: 'grow' }, input), paste),
     h('div', { style: { marginTop: '8px' } }, msg),
-    opts, compact ? null : more,
+    opts, compact ? null : more, setup,
     h('div', { style: { marginTop: '14px' } }, btnWrap));
 }
 
