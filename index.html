@@ -723,6 +723,7 @@ const S = {
   schedEdit: null,
   pubEdit: null, pubDraft: {}, pubAddDate: '',
   rvEdit: null, rvDraft: {}, rvFilter: 'attention', libOpen: {},
+  add: { url: '', mode: 'default', make: true, post: true, max: '' },
 };
 function loadConn() {
   for (const store of [localStorage, sessionStorage]) {
@@ -842,7 +843,7 @@ async function annotationsFor(run) {
 }
 
 /* ============================================================= dispatching jobs */
-const TASK_LABEL = { 'batch-reels': 'Make all reels', 'make-reels': 'Make reels', 'custom-reel': 'Custom reel', 'review-reel': 'Review reel', 'preview-reel': 'Preview', 'refresh-status': 'Refresh status', 'check-setup': 'Check setup', 'reset-source': 'Start video over', publish: 'Publish to YouTube', queue: 'Update queue' };
+const TASK_LABEL = { 'add-video': 'Add video', 'batch-reels': 'Make all reels', 'make-reels': 'Make reels', 'custom-reel': 'Custom reel', 'review-reel': 'Review reel', 'preview-reel': 'Preview', 'refresh-status': 'Refresh status', 'check-setup': 'Check setup', 'reset-source': 'Start video over', publish: 'Publish to YouTube', queue: 'Update queue' };
 async function dispatch(task, inputs) {
   const clean = { task };
   for (const [k, v] of Object.entries(inputs || {})) {
@@ -1041,7 +1042,8 @@ function refreshDynamic() {
 }
 function renderView(force = false) {
   const view = $('#view'); if (!view) return;
-  const typing = view.contains(document.activeElement) && (S.tab === 'make' || S.tab === 'settings' || S.tab === 'publish' || S.tab === 'review');
+  const typing = view.contains(document.activeElement) && (S.tab === 'make' || S.tab === 'settings' || S.tab === 'publish' || S.tab === 'review'
+    || (S.tab === 'overview' && document.activeElement.id === 'add-url'));
   if (typing && !force) return;   // background refreshes never rebuild a form someone is using
   const scrollY = window.scrollY;
   view.replaceChildren();
@@ -1076,6 +1078,7 @@ function renderLive() {
       h('span', { class: 'dot' }, state === 'done' ? icon('check') : state === 'failed' ? icon('x') : null), st.name));
   }
   const details = [];
+  if (L.inputs.url) details.push(L.inputs.url.replace(/^https:\/\/(www\.)?/, ''));
   if (L.inputs.source) details.push(clipName(L.inputs.source) + (L.inputs.start ? ` @ ${L.inputs.start}` : ''));
   if (L.inputs.date) details.push(L.inputs.date);
   if (L.inputs.reaction) details.push('reaction: ' + clipName(L.inputs.reaction));
@@ -1150,6 +1153,7 @@ function warningsBanners(view) {
 }
 function renderOverview(view) {
   const st = S.status, last = S.runs[0];
+  view.append(addVideoCard(true));
   warningsBanners(view);
   if (S.statusMissing) {
     view.append(h('div', { class: 'banner info', style: { marginBottom: '14px' } }, icon('info'),
@@ -1235,6 +1239,76 @@ function taskButton(task, inputs, label, cls = 'btn', iconName) {
   return b;
 }
 
+/* ------------------------------------------------------------- add a video */
+function ytVideoId(text) {
+  let raw = String(text || '').trim();
+  if (/^[A-Za-z0-9_-]{11}$/.test(raw)) return raw;
+  if (!/^https?:\/\//i.test(raw)) raw = 'https://' + raw;
+  let u;
+  try { u = new URL(raw); } catch { return null; }
+  const host = u.hostname.toLowerCase();
+  const ok = ['youtube.com', 'www.youtube.com', 'm.youtube.com', 'music.youtube.com', 'youtu.be', 'www.youtu.be'];
+  if (!ok.includes(host)) return null;
+  let id = host.endsWith('youtu.be') ? u.pathname.split('/')[1] : u.searchParams.get('v');
+  if (!id) { const m = u.pathname.match(/^\/(?:shorts|live|embed|v)\/([^/?#]+)/); id = m ? m[1] : ''; }
+  return /^[A-Za-z0-9_-]{11}$/.test(id || '') ? id : null;
+}
+function knownVideo(id) {
+  const st = S.status; if (!st || !id) return null;
+  const tag = `[${id}]`;
+  const hit = (st.sources || []).find(s => s.name.includes(tag) || (s.url || '').includes(id));
+  if (hit) return { where: 'sources', src: hit };
+  const done = ((st.review && st.review.done_sources) || []).find(s => s.name.includes(tag) || (s.url || '').includes(id));
+  return done ? { where: 'done', src: done } : null;
+}
+function addVideoCard(compact = false) {
+  const A = S.add, movie = MOVIE();
+  const pubOn = S.cfgValues['publish.enabled'] === true;
+  const msg = h('div', { class: 'hint' });
+  const btnWrap = h('div', { class: 'row wrap', style: { gap: '10px' } });
+  const paint = () => {
+    const id = ytVideoId(A.url);
+    const known = knownVideo(id);
+    msg.className = A.url.trim() && !id ? 'err' : 'hint';
+    msg.textContent = !A.url.trim() ? 'Paste a link from YouTube (also youtu.be and Shorts links). It is downloaded into your Drive, cut into reels, checked and scheduled.'
+      : !id ? 'That is not a link to one YouTube video (playlists and channels do not work).'
+      : known && known.where === 'done' ? `Already added and used up: ${clipName(known.src.name)}. Its free moments are in the Library.`
+      : known ? `Already in your videos: ${clipName(known.src.name)}. Adding it again only makes its remaining reels.`
+      : `Video ${id}: downloaded at up to 1080p, then ${A.make ? `cut into reels${A.post ? (pubOn ? ' and scheduled on YouTube' : ' (publishing is off in Settings, so they wait in the queue)') : ' (not posted)'}` : 'kept in your videos folder'}.`;
+    const b = taskButton('add-video', () => {
+      const opts = [A.make ? '' : 'make=off', A.post ? '' : 'post=off'].filter(Boolean).join(' ');
+      const inputs = { url: `https://www.youtube.com/watch?v=${ytVideoId(A.url)}`, count: A.max, options: opts,
+                       reaction_mode: movie ? A.mode : '' };
+      A.url = '';
+      return inputs;
+    }, 'Add video', 'btn primary', 'play');
+    if (!id || (known && known.where === 'done')) b.disabled = true;
+    btnWrap.replaceChildren(b);
+  };
+  const input = h('input', { class: 'input', id: 'add-url', type: 'url', inputmode: 'url', autocomplete: 'off', spellcheck: 'false',
+    placeholder: 'https://youtu.be/…', value: A.url, oninput: e => { A.url = e.target.value; paint(); } });
+  const paste = h('button', { class: 'btn', type: 'button', title: 'Paste from the clipboard', onclick: async () => {
+    try { const t = await navigator.clipboard.readText(); if (t) { A.url = t.trim(); input.value = A.url; paint(); } }
+    catch { input.focus(); toast('Long-press the box and choose Paste', true); }
+  } }, icon('copy'), 'Paste');
+  paint();
+  const opts = h('div', { class: 'row wrap', style: { gap: '18px', marginTop: '12px' } },
+    h('label', { class: 'switch' }, h('input', { type: 'checkbox', checked: A.make, onchange: e => { A.make = e.target.checked; paint(); } }), 'Make reels right away'),
+    h('label', { class: 'switch' }, h('input', { type: 'checkbox', checked: A.post, disabled: !A.make ? true : null, onchange: e => { A.post = e.target.checked; paint(); } }), 'Schedule them on YouTube'));
+  const more = h('details', { class: 'adv', style: { marginTop: '12px' } }, h('summary', null, 'Options', icon('down')),
+    h('div', { class: 'form-grid', style: { marginTop: '12px' } },
+      movie ? reactionModeControl(A) : null,
+      h('div', { class: 'field' }, h('label', null, 'At most this many reels now'),
+        h('input', { class: 'input num', type: 'number', min: 1, max: 50, placeholder: 'all good moments', value: A.max, oninput: e => { A.max = e.target.value; } }))));
+  return h('div', { class: 'card', style: compact ? { marginBottom: '14px' } : null },
+    h('div', { class: 'row', style: { marginBottom: '10px' } }, h('div', { class: 'yt-mark', style: { width: '32px', height: '32px', borderRadius: '9px' } }, icon('yt')),
+      h('div', null, h('h2', null, 'Add a video by link'), compact ? null : h('div', { class: 'small muted' }, 'The fastest way in: one link, and the rest happens on its own.'))),
+    h('div', { class: 'row', style: { gap: '8px', alignItems: 'stretch' } }, h('div', { class: 'grow' }, input), paste),
+    h('div', { style: { marginTop: '8px' } }, msg),
+    opts, compact ? null : more,
+    h('div', { style: { marginTop: '14px' } }, btnWrap));
+}
+
 /* --------------------------------------------------------------------- make */
 function reactionOptions(st, autoLabel) {
   const groups = {};
@@ -1251,6 +1325,9 @@ function renderMake(view) {
   const busy = S.live && !S.live.done;
   if (busy) view.append(h('div', { class: 'banner info', style: { marginBottom: '14px' } }, icon('info'), h('div', null, 'A job is running. You can start the next one when it finishes.')));
 
+  /* add by link */
+  view.append(addVideoCard(false));
+  view.append(h('div', { class: 'section-head' }, h('h2', null, 'From your videos')));
   /* batch */
   view.append(batchCard(st));
   view.append(h('div', { class: 'section-head' }, h('h2', null, 'A few reels')));
@@ -1993,6 +2070,7 @@ function renderLibrary(view) {
           b.title = 'Forget which moments were used, so the whole video can be made into reels again';
           b.addEventListener('click', ev => { if (!confirm(`Start "${clipName(s.name)}" over? All ${s.uses} used moments become available again (existing reels stay).`)) { ev.stopImmediatePropagation(); } }, { capture: true });
           return b; })() : null,
+        ytHref(s.url) ? h('a', { class: 'iconbtn', href: ytHref(s.url), target: '_blank', rel: 'noopener noreferrer', title: 'Original on YouTube', 'aria-label': 'Original on YouTube' }, icon('yt')) : null,
         driveHref(s.link) ? h('a', { class: 'iconbtn', href: driveHref(s.link), target: '_blank', rel: 'noopener noreferrer', title: 'Open in Drive', 'aria-label': 'Open in Drive' }, icon('ext')) : null));
   }))));
 
