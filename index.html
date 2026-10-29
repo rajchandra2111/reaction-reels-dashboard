@@ -133,6 +133,16 @@ h2{font-size:17px;font-weight:650}h3{font-size:15px;font-weight:650}
 .seg{display:flex;width:100%;border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:3px;background:var(--surface-2);gap:3px}
 .seg button{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:0;background:transparent;border-radius:7px;padding:6px 11px;cursor:pointer;font-weight:600;font-size:13.5px;color:var(--muted)}
 .seg button[aria-pressed="true"]{background:var(--surface);color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.1)}
+.looks{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.look{display:flex;flex-direction:column;gap:8px;text-align:left;border:1.5px solid var(--border);background:var(--surface);border-radius:12px;padding:10px;cursor:pointer;color:var(--text);font:inherit}
+.look:hover{border-color:var(--border-strong)}
+.look[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.look .sk{display:block;width:100%;max-width:110px;margin:0 auto}
+.look .sk svg{display:block;width:100%;height:auto;border-radius:8px}
+.look b{font-size:14px}
+.look .d{font-size:12.5px;color:var(--muted);line-height:1.35}
+.look .uses{font-size:12px;color:var(--accent);font-weight:600;min-height:16px}
+.per-type{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px 16px;margin-top:10px}
 .range{display:flex;align-items:center;gap:10px}.range input{flex:1;accent-color:var(--accent)}
 .range output{min-width:46px;text-align:right;font-variant-numeric:tabular-nums;font-size:13px;color:var(--muted)}
 details.adv>summary{cursor:pointer;color:var(--muted);font-weight:600;font-size:13.5px;list-style:none;display:flex;align-items:center;gap:6px}
@@ -559,6 +569,10 @@ const SCHEMA = [
       hint: 'Auto only reacts to big beats in these.' },
   ]},
   { section: 'layout', title: 'Framing', blurb: 'How the movie and your reaction share the screen. Nothing important is ever cut off.', fields: [
+    { key: 'style', label: 'Look of every reel', type: 'enum', custom: true,
+      options: [['classic', 'Classic'], ['split', 'Split screen'], ['meme', 'Meme title'], ['reactor', 'Reactor']] },
+    ...['dialogue', 'funny', 'spectacle', 'reveal', 'emotional', 'story'].map(t => ({ key: `style_${t}`, label: t, type: 'enum', custom: true,
+      options: [['', 'Same'], ['classic', 'Classic'], ['split', 'Split screen'], ['meme', 'Meme title'], ['reactor', 'Reactor']] })),
     { key: 'tracking', label: 'Close-ups that follow faces and action', type: 'bool',
       hint: 'Needs the Gemini key. Only used when the subject fits in every frame; otherwise the whole frame is shown.' },
     { key: 'safe_zone', label: 'Keep text and faces clear of', type: 'enum', options: [['youtube', 'YouTube'], ['tiktok', 'TikTok'], ['none', 'None']],
@@ -1387,7 +1401,7 @@ function renderMake(view) {
       taskButton('check-setup', {}, 'Check setup', 'btn'))));
 }
 function batchCard(st) {
-  const B = (S.make.batch ||= { source: '', max: '', dry: false, mode: 'default', more: false, until: '', fresh: false });
+  const B = (S.make.batch ||= { source: '', max: '', dry: false, mode: 'default', more: false, until: '', fresh: false, look: '' });
   const movie = MOVIE();
   const sources = st ? st.sources.filter(s => !s.exhausted) : [];
   const note = h('div', { class: 'small muted' });
@@ -1415,13 +1429,14 @@ function batchCard(st) {
       h('div', { class: 'field', style: { gridColumn: 'span 2' } }, h('label', null, 'Video'), srcSel),
       h('div', { class: 'field' }, h('label', null, 'At most (optional)'),
         h('input', { class: 'input num', type: 'number', min: 1, max: 200, placeholder: 'all', value: B.max, oninput: e => { B.max = e.target.value; } })),
+      movie ? h('div', { class: 'field' }, h('label', null, 'Look'), lookSelect(() => B.look, v => { B.look = v; })) : null,
       movie ? h('div', { class: 'field' }, h('label', { title: 'Your time zone setting. Needs one video picked above.' }, 'Post them all today by (optional)'),
         h('input', { class: 'input', type: 'time', value: B.until, 'aria-label': 'Post them all today by', oninput: e => { B.until = e.target.value; paint(); } })) : null),
     movie ? h('div', { style: { marginTop: '14px', maxWidth: '520px' } }, reactionModeControl(B)) : null,
     h('div', { style: { margin: '12px 0 4px' } }, note),
     h('div', { class: 'row wrap', style: { marginTop: '14px', gap: '16px' } },
       taskButton('batch-reels', () => ({ source: B.source, count: B.max, dry_run: B.dry, reaction_mode: movie ? B.mode : '',
-        options: movie ? [B.more ? 'min_score=50 cap=40 moments=50' : '', B.source && B.fresh ? 'fresh' : '',
+        options: movie ? [B.more ? 'min_score=50 cap=40 moments=50' : '', B.source && B.fresh ? 'fresh' : '', B.look ? `style=${B.look}` : '',
           B.source && B.until && !B.dry ? `until=${B.until} minutes=${batchMinutes(B.until)}` : ''].filter(Boolean).join(' ') : '' }),
         'Make all reels', 'btn primary', 'play'),
       movie ? h('label', { class: 'switch', title: 'This run only: moments scoring 50+ (instead of your setting), no per-video limit, and Gemini looks for more moments in new videos' },
@@ -1522,7 +1537,41 @@ function customCard(st, today) {
 /* ------------------------------------------------------------ movie engine */
 const TYPE_LABEL = { reveal: 'Reveal', spectacle: 'Spectacle', dialogue: 'Dialogue', emotional: 'Emotional', funny: 'Funny', story: 'Story' };
 const QC = { pass: ['ok', 'Passed'], approved: ['ok', 'Approved'], review: ['warn', 'Needs a look'], reject: ['bad', 'Failed the check'], rejected: ['bad', 'Rejected'] };
-const PLACEMENT = { box: 'box under the movie', bubble: 'round bubble', popin: 'pops in at the big moment' };
+const PLACEMENT = { box: 'box under the movie', bubble: 'round bubble', popin: 'pops in at the big moment',
+  panel: 'top half', card: 'card in the title bar', full: 'big, under the movie' };
+const LOOKS = [
+  ['classic', 'Classic', 'The director frames the movie (whole, close-up or two-shot); you in a box or bubble.'],
+  ['split', 'Split screen', 'You full width on top, the whole movie below. The classic reaction format.'],
+  ['meme', 'Meme title', 'White bar with big text and you in a card, the movie below. Made for lines and jokes.'],
+  ['reactor', 'Reactor', 'Your face big, the movie in a framed card above you. For shocks and hype.'],
+];
+const LOOK_LABEL = Object.fromEntries(LOOKS.map(l => [l[0], l[1]]));
+const LOOK_TYPES = ['dialogue', 'funny', 'spectacle', 'reveal', 'emotional', 'story'];
+// small wireframes of the four looks (9:16): movie grey, you purple, words white/black
+function lookSketch(look) {
+  const you = (cx, cy, r) => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#8b7ef5"/><path d="M${cx - r * 1.7} ${cy + r * 2.6} q${r * 1.7} -${r * 2.2} ${r * 3.4} 0z" fill="#8b7ef5"/>`;
+  const movie = (x, y, w, hh) => `<rect x="${x}" y="${y}" width="${w}" height="${hh}" fill="#59606e"/><path d="M${x + w / 2 - 4} ${y + hh / 2 - 5} l9 5 -9 5z" fill="#c9ced8"/>`;
+  const cap = y => `<rect x="22" y="${y}" width="46" height="4" rx="2" fill="#fff"/>`;
+  const body = {
+    classic: movie(0, 40, 90, 38) + cap(84) + `<rect x="17" y="94" width="56" height="36" rx="5" fill="#2b2e36" stroke="#fff" stroke-width="1.5"/>` +
+      `<svg x="17" y="94" width="56" height="36">${you(28, 15, 6)}</svg>`,
+    split: `<svg x="0" y="0" width="90" height="72">${you(45, 30, 11)}</svg><rect y="72" width="90" height="1.6" fill="#fff"/>` + movie(0, 74, 90, 36) + cap(118),
+    meme: `<rect width="90" height="50" fill="#fff"/><rect x="7" y="16" width="44" height="5" rx="1" fill="#1d1d1d"/><rect x="7" y="24" width="38" height="5" rx="1" fill="#1d1d1d"/>` +
+      `<rect x="7" y="32" width="30" height="5" rx="1" fill="#1d1d1d"/><rect x="58" y="14" width="26" height="26" rx="4" fill="#2b2e36"/><svg x="58" y="14" width="26" height="26">${you(13, 10, 4.5)}</svg>` +
+      movie(0, 50, 90, 36) + cap(92),
+    reactor: `<defs><linearGradient id="fadeg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8b7ef5" stop-opacity="0"/><stop offset=".35" stop-color="#8b7ef5" stop-opacity=".35"/></linearGradient></defs>` +
+      `<rect y="52" width="90" height="108" fill="url(#fadeg)"/>${you(45, 104, 16)}<rect x="5" y="15" width="80" height="40" rx="4" fill="#fff"/>` + movie(7, 17, 76, 36) + cap(134),
+  }[look] || '';
+  const sk = h('span', { class: 'sk', 'aria-hidden': 'true' });
+  sk.innerHTML = `<svg viewBox="0 0 90 160" xmlns="http://www.w3.org/2000/svg"><rect width="90" height="160" fill="#1d1f24"/>${body}</svg>`;
+  return sk;
+}
+function lookSelect(get, set, first = ['', 'From Settings']) {
+  const sel = h('select', { class: 'input', onchange: e => set(e.target.value) },
+    [first, ...LOOKS.map(l => [l[0], l[1]])].map(([v, l]) => h('option', { value: v }, l)));
+  sel.value = get() || '';
+  return sel;
+}
 const POSTED = ['scheduled', 'live', 'unlisted', 'private', 'blocked', 'removed'];
 function qcPill(qc) { if (!qc) return null; const [c, t] = QC[qc] || ['idle', qc]; return h('span', { class: 'pill ' + c }, t); }
 function tag(text, title) { return h('span', { class: 'tag', title: title || null }, text); }
@@ -1564,6 +1613,7 @@ function rvOptions(D, it) {
   const parts = [];
   if (D.reaction !== 'keep') parts.push(`reaction=${D.reaction}`);
   if (D.layout !== 'keep') parts.push(`layout=${D.layout}`);
+  if (D.look && D.look !== 'keep') parts.push(`style=${D.look}`);
   if (D.captions !== 'keep') parts.push(`captions=${D.captions}`);
   if (D.hook !== (it.hook || '')) parts.push(`hook="${D.hook.replace(/"/g, "'")}"`);
   const st = Number(D.start), en = Number(D.end);
@@ -1572,7 +1622,7 @@ function rvOptions(D, it) {
   return parts.join(' ');
 }
 function rvEditor(it) {
-  const D = (S.rvDraft[it.id] ||= { reaction: 'keep', layout: 'keep', captions: 'keep', hook: it.hook || '', start: '', end: '' });
+  const D = (S.rvDraft[it.id] ||= { reaction: 'keep', layout: 'keep', look: 'keep', captions: 'keep', hook: it.hook || '', start: '', end: '' });
   const preview = h('div', { class: 'tiny muted' });
   const paint = () => { const o = rvOptions(D, it); preview.textContent = o ? 'Remake with: ' + o : 'Nothing changed: it is made again with the current settings.'; };
   paint();
@@ -1582,7 +1632,9 @@ function rvEditor(it) {
       segCtl('Your reaction', [['keep', 'Keep'], ['always', 'On'], ['never', 'Off'], ['auto', 'Auto']], () => D.reaction, v => { D.reaction = v; paint(); }),
       segCtl('Framing', [['keep', 'Keep'], ['whole', 'Whole frame'], ['auto', 'Smart']], () => D.layout, v => { D.layout = v; paint(); },
         'Whole frame never crops the movie.'),
-      segCtl('Captions', [['keep', 'Keep'], ['on', 'On'], ['off', 'Off']], () => D.captions, v => { D.captions = v; paint(); })),
+      segCtl('Captions', [['keep', 'Keep'], ['on', 'On'], ['off', 'Off']], () => D.captions, v => { D.captions = v; paint(); }),
+      h('div', { class: 'field' }, h('div', { class: 'lbl' }, 'Look'),
+        lookSelect(() => D.look === 'keep' ? '' : D.look, v => { D.look = v || 'keep'; paint(); }, ['', `Keep (${LOOK_LABEL[it.style || 'classic']})`]))),
     h('div', { class: 'form-grid' },
       h('div', { class: 'field' }, h('label', null, 'Hook line (first 2 s)'),
         h('input', { class: 'input', maxlength: 60, value: D.hook, placeholder: 'empty = no hook line', oninput: e => { D.hook = e.target.value; paint(); } })),
@@ -1626,7 +1678,8 @@ function rvRow(row) {
       h('div', { class: 'row wrap', style: { gap: '6px', marginTop: '8px' } },
         qcPill(it.qc), it.post && !['review', 'rejected'].includes(it.post) ? pubPill({ status: it.post }) : null, scoreBadge(it.score),
         it.type ? tag(TYPE_LABEL[it.type] || it.type) : null, it.emotion ? emoChip(it.emotion) : null,
-        tag(layoutText(it.layout)), it.captions ? tag(`${it.captions} caption${it.captions === 1 ? '' : 's'}`) : null),
+        it.style && it.style !== 'classic' ? tag(LOOK_LABEL[it.style] || it.style) : tag(layoutText(it.layout)),
+        it.captions ? tag(`${it.captions} caption${it.captions === 1 ? '' : 's'}`) : null),
       h('div', { class: 'small', style: { marginTop: '8px' } },
         it.reaction_on ? `Your reaction: ${PLACEMENT[it.placement] || it.placement || 'on'} · ${clipName(fileName(it.reaction))}` : 'Clip only',
         it.reaction_reason ? h('span', { class: 'muted' }, ` (${it.reaction_reason})`) : null),
@@ -1700,7 +1753,8 @@ function pvRow(p) {
       h('div', { class: 't', style: { fontWeight: 650, overflowWrap: 'anywhere' } }, p.video || clipName(p.source || p.name)),
       h('div', { class: 'small muted' }, [`${hms(p.start)}–${hms(p.end)}`, p.duration ? `${Math.round(p.duration)} s` : null, p.made ? relTime(p.made) : null].filter(Boolean).join(' · ')),
       h('div', { class: 'row wrap', style: { gap: '6px', marginTop: '8px' } }, h('span', { class: 'pill idle' }, 'Preview'), qcPill(p.qc), scoreBadge(p.score),
-        p.type ? tag(TYPE_LABEL[p.type] || p.type) : null, p.layout ? tag(layoutText(p.layout)) : null,
+        p.type ? tag(TYPE_LABEL[p.type] || p.type) : null,
+        p.style && p.style !== 'classic' ? tag(LOOK_LABEL[p.style] || p.style) : p.layout ? tag(layoutText(p.layout)) : null,
         p.captions ? tag(`${p.captions} caption${p.captions === 1 ? '' : 's'}`) : null),
       h('div', { class: 'small', style: { marginTop: '8px' } },
         p.reaction_on ? `Your reaction: ${PLACEMENT[p.placement] || p.placement || 'on'} · ${clipName(fileName(p.reaction))}` : 'Clip only',
@@ -1769,11 +1823,13 @@ function movieCustomCard(st, src, today) {
         hit ? null : h('div', { class: 'field' }, h('label', null, 'Length (s)'),
           h('input', { class: 'input num', type: 'number', min: 2, max: 60, step: 1, placeholder: '10', value: C.length, oninput: e => { C.length = e.target.value; }, onchange: () => draw() })),
         h('div', { class: 'field' }, h('label', null, 'Reaction clip'), reactSel),
+        h('div', { class: 'field' }, h('label', null, 'Look'), lookSelect(() => C.look, v => { C.look = v; })),
         h('div', { class: 'field' }, h('label', null, 'Date folder'), h('input', { class: 'input', type: 'date', value: C.date, onchange: e => { C.date = e.target.value; } }))),
       h('div', { style: { marginTop: '14px', maxWidth: '520px' } }, reactionModeControl(C)),
       h('div', { class: 'row wrap', style: { marginTop: '16px', gap: '16px' } },
         (() => { const b2 = taskButton('custom-reel', () => ({ source: src.name, start: C.start, reaction: C.reaction, date: C.date === today ? '' : C.date, dry_run: C.dry,
-          reaction_mode: C.mode, options: !hit && C.start.trim() && C.length ? `length=${Number(C.length)}` : '' }), 'Make custom reel', 'btn primary', 'wand'); if (!ok) b2.disabled = true; return b2; })(),
+          reaction_mode: C.mode, options: [!hit && C.start.trim() && C.length ? `length=${Number(C.length)}` : '', C.look ? `style=${C.look}` : ''].filter(Boolean).join(' ') }),
+          'Make custom reel', 'btn primary', 'wand'); if (!ok) b2.disabled = true; return b2; })(),
         h('label', { class: 'switch' }, h('input', { type: 'checkbox', checked: C.dry, onchange: e => { C.dry = e.target.checked; } }), 'Dry run')));
   };
   draw();
@@ -1809,6 +1865,11 @@ function momentRow(src, m, done = false) {
   const pv = taskButton('preview-reel', { source: src.name, start: String(m.start) }, 'Preview', 'btn sm ghost', 'eye');
   pv.title = 'Render it to the previews folder: not used up, never posted';
   acts.push(pv);
+  if (MOVIE()) {
+    const pvAll = taskButton('preview-reel', { source: src.name, start: String(m.start), options: 'style=all' }, 'Preview all looks', 'btn sm ghost', 'film');
+    pvAll.title = 'The same moment in Classic, Split screen, Meme title and Reactor, to compare in Review → Previews';
+    acts.push(pvAll);
+  }
   const act = acts.length ? h('div', { class: 'row wrap', style: { gap: '4px', justifyContent: 'flex-end' } }, acts) : null;
   const why = m.reject || [m.hook_text ? `Hook: “${m.hook_text}”` : '', m.reaction_fit === 'off' ? `clip only: ${m.reaction_reason || 'needs the whole screen'}` : '',
     m.needs_context ? 'needs context' : ''].filter(Boolean).join(' · ');
@@ -2267,12 +2328,33 @@ async function saveConfig(changes, message) {
   }
   await loadConfig();
 }
+function looksCard() {
+  const val = k => (`layout.${k}` in S.edits ? S.edits[`layout.${k}`] : cfgValue('layout', k)) ?? '';
+  const set = (k, v) => { if (v === (S.cfgValues[`layout.${k}`] ?? '')) delete S.edits[`layout.${k}`]; else S.edits[`layout.${k}`] = v; updateSaveBar(); renderView(true); };
+  const def = val('style') || 'classic';
+  const usedBy = look => LOOK_TYPES.filter(t => (val(`style_${t}`) || def) === look).map(t => TYPE_LABEL[t]);
+  return h('div', { class: 'card' },
+    h('div', { style: { marginBottom: '14px' } }, h('h2', null, 'Look of your reels'),
+      h('div', { class: 'small muted' }, 'Pick the look every reel gets, then change it for the kinds of moments where another look works better. Split screen and Reactor need your reaction: a clip-only moment gets the classic look.')),
+    h('div', { class: 'looks', role: 'group', 'aria-label': 'Look of every reel' }, LOOKS.map(([k, name, desc]) => {
+      const uses = usedBy(k);
+      return h('button', { type: 'button', class: 'look', 'aria-pressed': String(def === k), onclick: () => set('style', k) },
+        lookSketch(k), h('b', null, name), h('span', { class: 'd' }, desc),
+        h('span', { class: 'uses' }, uses.length === LOOK_TYPES.length ? 'Every moment' : uses.length ? uses.join(', ') : ''));
+    })),
+    h('div', { class: 'small', style: { marginTop: '18px', fontWeight: 650 } }, 'Per kind of moment'),
+    h('div', { class: 'per-type' }, LOOK_TYPES.map(t => h('div', { class: 'field' }, h('div', { class: 'lbl' }, `${TYPE_LABEL[t]} moments`),
+      lookSelect(() => val(`style_${t}`), v => set(`style_${t}`, v), ['', `Same (${LOOK_LABEL[def]})`])))),
+    h('div', { class: 'hint', style: { marginTop: '10px' } }, 'Try them on a real moment first: Library → a moment → Preview all looks.'));
+}
 function renderSettings(view) {
   if (!S.cfgText) { view.append(h('div', { class: 'empty' }, h('h3', null, 'config.toml not found'), h('div', { class: 'small' }, 'Push the latest project code to your repository.'))); return; }
   view.append(scheduleCard());
   for (const sec of SCHEMA) {
     const hideClassic = f => f.classic && MOVIE();
-    const basic = sec.fields.filter(f => !f.adv && !sec.adv && !hideClassic(f)), adv = sec.fields.filter(f => f.adv || sec.adv || hideClassic(f));
+    const plain = sec.fields.filter(f => !f.custom);
+    const basic = plain.filter(f => !f.adv && !sec.adv && !hideClassic(f)), adv = plain.filter(f => f.adv || sec.adv || hideClassic(f));
+    if (sec.section === 'layout' && MOVIE()) view.append(h('div', { style: { marginTop: '14px' } }, looksCard()));
     const keyNote = sec.section === 'match' && S.status && S.status.config ? (S.status.config.gemini_key
       ? h('div', { class: 'banner info', style: { marginBottom: '14px' } }, icon('check'), h('div', null, 'Gemini key connected: scenes are judged by AI.'))
       : h('div', { class: 'banner warn', style: { marginBottom: '14px' } }, icon('key'), h('div', null,
