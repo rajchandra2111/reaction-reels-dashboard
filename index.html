@@ -574,9 +574,9 @@ const SCHEMA = [
   ]},
   { section: 'layout', title: 'Framing', blurb: 'How the movie and your reaction share the screen. Nothing important is ever cut off.', fields: [
     { key: 'style', label: 'Look of every reel', type: 'enum', custom: true,
-      options: [['classic', 'Classic'], ['focus', 'Subject close-up'], ['split', 'Split screen'], ['meme', 'Meme title'], ['reactor', 'Reactor']] },
+      options: [['classic', 'Classic'], ['square', 'Reaction on top'], ['focus', 'Subject close-up'], ['split', 'Split screen'], ['meme', 'Meme title'], ['reactor', 'Reactor']] },
     ...['dialogue', 'funny', 'spectacle', 'reveal', 'emotional', 'story'].map(t => ({ key: `style_${t}`, label: t, type: 'enum', custom: true,
-      options: [['', 'Same'], ['classic', 'Classic'], ['focus', 'Subject close-up'], ['split', 'Split screen'], ['meme', 'Meme title'], ['reactor', 'Reactor']] })),
+      options: [['', 'Same'], ['classic', 'Classic'], ['square', 'Reaction on top'], ['focus', 'Subject close-up'], ['split', 'Split screen'], ['meme', 'Meme title'], ['reactor', 'Reactor']] })),
     { key: 'focus_bubble', label: 'Your circle in Subject close-up', type: 'enum', custom: true, options: [['top', 'Top corner'], ['side', 'Left side'], ['bottom', 'Bottom corner']] },
     { key: 'focus_bubble_size', label: 'Circle size in Subject close-up (px)', type: 'int', min: 160, max: 420, adv: true },
     { key: 'tracking', label: 'Close-ups that follow faces and action', type: 'bool',
@@ -1545,9 +1545,10 @@ function customCard(st, today) {
 const TYPE_LABEL = { reveal: 'Reveal', spectacle: 'Spectacle', dialogue: 'Dialogue', emotional: 'Emotional', funny: 'Funny', story: 'Story' };
 const QC = { pass: ['ok', 'Passed'], approved: ['ok', 'Approved'], review: ['warn', 'Needs a look'], reject: ['bad', 'Failed the check'], rejected: ['bad', 'Rejected'] };
 const PLACEMENT = { box: 'box under the movie', bubble: 'round bubble', popin: 'pops in at the big moment',
-  panel: 'top half', card: 'card in the title bar', full: 'big, under the movie' };
+  panel: 'on top', card: 'card in the title bar', full: 'big, under the movie' };
 const LOOKS = [
   ['classic', 'Classic', 'The director frames the movie (whole, close-up or two-shot); you in a box or bubble.'],
+  ['square', 'Reaction on top', 'You full width on top; below, a square of the movie that follows the face or action.'],
   ['focus', 'Subject close-up', 'The character who speaks fills the screen; you in a small circle out of the way.'],
   ['split', 'Split screen', 'You full width on top, the whole movie below. The classic reaction format.'],
   ['meme', 'Meme title', 'White bar with big text and you in a card, the movie below. Made for lines and jokes.'],
@@ -1567,6 +1568,8 @@ function lookSketch(look) {
       `<circle cx="${{ top: 13, side: 12, bottom: 75 }[lookSpot()] || 13}" cy="${{ top: 13, side: 88, bottom: 146 }[lookSpot()] || 13}" r="10.5" fill="#2b2e36" stroke="#fff" stroke-width="1.3"/>` +
       `<svg x="${({ top: 13, side: 12, bottom: 75 }[lookSpot()] || 13) - 10}" y="${({ top: 13, side: 88, bottom: 146 }[lookSpot()] || 13) - 10}" width="20" height="20">${you(10, 8, 3.5)}</svg>` + cap(122),
     split: `<svg x="0" y="0" width="90" height="72">${you(45, 30, 11)}</svg><rect y="72" width="90" height="1.6" fill="#fff"/>` + movie(0, 74, 90, 36) + cap(118),
+    square: `<svg x="0" y="0" width="90" height="66">${you(45, 27, 10)}</svg><rect y="66" width="90" height="1.6" fill="#fff"/>` +
+      `<rect y="68" width="90" height="90" fill="#4a505d"/><circle cx="50" cy="98" r="13" fill="#79808f"/><path d="M24 158 q26 -56 52 0z" fill="#6a7180"/>` + cap(128),
     meme: `<rect width="90" height="50" fill="#fff"/><rect x="7" y="16" width="44" height="5" rx="1" fill="#1d1d1d"/><rect x="7" y="24" width="38" height="5" rx="1" fill="#1d1d1d"/>` +
       `<rect x="7" y="32" width="30" height="5" rx="1" fill="#1d1d1d"/><rect x="58" y="14" width="26" height="26" rx="4" fill="#2b2e36"/><svg x="58" y="14" width="26" height="26">${you(13, 10, 4.5)}</svg>` +
       movie(0, 50, 90, 36) + cap(92),
