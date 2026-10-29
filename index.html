@@ -2137,11 +2137,13 @@ function renderLibrary(view) {
   const doneSrc = (st.review && st.review.done_sources) || [];
   if (doneSrc.length) {
     view.append(h('div', { class: 'section-head' }, h('h2', null, `Used-up videos (${doneSrc.length})`),
-      h('span', { class: 'small muted' }, `In ${st.storage.folders.done}: preview any moment, make the free ones`)));
+      h('span', { class: 'small muted' }, `In ${st.storage.folders.done}: preview any moment, make the free ones, or find more`)));
     view.append(h('div', { class: 'card' }, h('div', { class: 'list' }, doneSrc.map(s => h('div', { class: 'item', style: { alignItems: 'flex-start' } },
       h('div', { class: 'grow' }, h('div', { class: 't ellipsis', title: s.name }, clipName(s.name)),
         h('div', { class: 'small muted num' }, [s.duration ? hms(s.duration) : null, 'used up'].filter(Boolean).join(' · ')),
-        movieAnalysis(s, true)))))));
+        movieAnalysis(s, true)),
+      MOVIE() ? h('span', { title: 'Gemini watches the video again for other moments than the ones already made, and makes them' },
+        taskButton('batch-reels', { source: s.name, options: 'more min_score=50 cap=40 moments=50' }, 'Find more moments', 'btn sm', 'wand')) : null)))));
   }
   view.append(h('div', { class: 'section-head' }, h('h2', null, `Reaction clips (${st.reactions.length})`),
     driveHref(links.reactions) ? h('a', { class: 'link', href: driveHref(links.reactions), target: '_blank', rel: 'noopener noreferrer' }, icon('folder'), st.storage.folders.reactions, icon('ext')) : null));
