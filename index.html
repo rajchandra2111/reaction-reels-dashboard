@@ -722,7 +722,7 @@ const S = {
           custom: { source: '', start: '', reaction: '', date: '', dry: false } },
   schedEdit: null,
   pubEdit: null, pubDraft: {}, pubAddDate: '',
-  rvEdit: null, rvDraft: {}, rvFilter: 'attention', libOpen: {},
+  rvEdit: null, rvDraft: {}, rvFilter: 'attention', libOpen: {}, burst: null,
   add: { url: '', mode: 'default', make: true, post: true, max: '' },
 };
 function loadConn() {
@@ -1387,7 +1387,7 @@ function renderMake(view) {
       taskButton('check-setup', {}, 'Check setup', 'btn'))));
 }
 function batchCard(st) {
-  const B = (S.make.batch ||= { source: '', max: '', dry: false, mode: 'default' });
+  const B = (S.make.batch ||= { source: '', max: '', dry: false, mode: 'default', more: false });
   const movie = MOVIE();
   const sources = st ? st.sources.filter(s => !s.exhausted) : [];
   const note = h('div', { class: 'small muted' });
@@ -1415,7 +1415,10 @@ function batchCard(st) {
     movie ? h('div', { style: { marginTop: '14px', maxWidth: '520px' } }, reactionModeControl(B)) : null,
     h('div', { style: { margin: '12px 0 4px' } }, note),
     h('div', { class: 'row wrap', style: { marginTop: '14px', gap: '16px' } },
-      taskButton('batch-reels', () => ({ source: B.source, count: B.max, dry_run: B.dry, reaction_mode: movie ? B.mode : '' }), 'Make all reels', 'btn primary', 'play'),
+      taskButton('batch-reels', () => ({ source: B.source, count: B.max, dry_run: B.dry, reaction_mode: movie ? B.mode : '',
+        options: movie && B.more ? 'min_score=50 cap=40 moments=50' : '' }), 'Make all reels', 'btn primary', 'play'),
+      movie ? h('label', { class: 'switch', title: 'This run only: moments scoring 50+ (instead of your setting), no per-video limit, and Gemini looks for more moments in new videos' },
+        h('input', { type: 'checkbox', checked: B.more, onchange: e => { B.more = e.target.checked; } }), 'As many reels as possible') : null,
       h('label', { class: 'switch' }, h('input', { type: 'checkbox', checked: B.dry, onchange: e => { B.dry = e.target.checked; paint(); } }), 'Dry run')));
 }
 function customCard(st, today) {
@@ -1975,6 +1978,39 @@ function pubSection(view, title, items, sub, extra) {
     h('div', { class: 'row' }, sub ? h('span', { class: 'small muted hide-sm' }, sub) : null, extra || null)));
   view.append(h('div', { class: 'card' }, h('div', { class: 'list' }, items.map(pubRow))));
 }
+function burstCard(P) {
+  const waitingBy = {};
+  for (const it of P.items || []) if (it.status === 'queued') (waitingBy[it.source] ||= []).push(it);
+  const videos = Object.keys(waitingBy);
+  if (!videos.length) return null;
+  const Bu = (S.burst ||= { source: '', until: '11:00' });
+  if (!videos.includes(Bu.source)) Bu.source = videos[0];
+  const note = h('div', { class: 'hint' });
+  const paint = () => {
+    const n = (waitingBy[Bu.source] || []).length;
+    const [hh, mm] = (Bu.until || '').split(':').map(Number);
+    const p = tzParts(new Date(), tz());
+    const end = zonedToUtc(p.y, p.m, p.d, hh, mm, tz());
+    const mins = (end - Date.now()) / 60000 - 20;
+    note.className = mins > 0 ? 'hint' : 'err';
+    note.textContent = mins > 0 ? `${n} reel${n === 1 ? '' : 's'} spread from about 20 minutes from now until ${Bu.until} today: one every ~${Math.max(1, Math.round(mins / Math.max(1, n)))} min. Reels that still need a look stay in Review.`
+      : `${Bu.until} is too soon today: pick a later time.`;
+  };
+  const sel = h('select', { class: 'input', onchange: e => { Bu.source = e.target.value; paint(); } },
+    videos.map(v => h('option', { value: v }, `${clipName(v)} · ${waitingBy[v].length} waiting`)));
+  sel.value = Bu.source;
+  paint();
+  return h('div', { class: 'card', style: { marginTop: '14px' } },
+    h('div', { style: { marginBottom: '12px' } }, h('h2', null, "Post a video's reels by a time"),
+      h('div', { class: 'small muted' }, 'Instead of the regular post times: every waiting reel of one video goes out today, evenly spread.')),
+    h('div', { class: 'form-grid' },
+      h('div', { class: 'field', style: { gridColumn: 'span 2' } }, h('label', null, 'Video'), sel),
+      h('div', { class: 'field' }, h('label', null, 'All posted by'),
+        h('input', { class: 'input num', type: 'time', value: Bu.until, oninput: e => { Bu.until = e.target.value; paint(); } }))),
+    h('div', { style: { marginTop: '8px' } }, note),
+    h('div', { class: 'row', style: { marginTop: '12px' } },
+      taskButton('publish', () => ({ source: Bu.source, options: `until=${Bu.until}` }), 'Schedule them', 'btn primary', 'cal')));
+}
 function renderPublish(view) {
   const st = S.status, P = st && st.publish;
   if (!P) {
@@ -1991,6 +2027,7 @@ function renderPublish(view) {
     taskButton('queue', { op: 'resume', source: hld.source }, 'Resume', 'btn sm')));
   view.append(pubHeader(P));
   if (!P.connected) view.append(setupCard(P));
+  else { const bc = burstCard(P); if (bc) view.append(bc); }
 
   const items = P.items || [];
   const byAt = (a, b) => String(a.at || '').localeCompare(String(b.at || ''));
