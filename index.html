@@ -559,6 +559,10 @@ const SCHEMA = [
       hint: 'Moments between this and the score above are listed in the Library to make by hand.' },
     { key: 'min_seconds', label: 'Shortest reel (s)', type: 'float', min: 3, max: 30, step: 0.5, adv: true },
     { key: 'snap', label: 'Start and end on shot cuts and speech pauses', type: 'bool', adv: true },
+    { key: 'skip_repeats', label: 'Leave out footage that is already in a reel (from any video)', type: 'bool',
+      hint: 'Compilations overlap: the same scene is never posted twice.' },
+    { key: 'wait_for_ai', label: 'Wait for Gemini instead of making basic reels', type: 'bool', adv: true,
+      hint: 'When its free daily limit is used up, a video waits for the next run.' },
   ]},
   { section: 'reaction', title: 'Your reaction', blurb: 'Whether your face is in a reel, and when.', fields: [
     { key: 'mode', label: 'Show my reaction', type: 'enum', options: [['auto', 'Auto'], ['always', 'Always'], ['never', 'Never']],
@@ -2404,7 +2408,7 @@ function renderSettings(view) {
 }
 function scheduleCard() {
   const sc = S.sched;
-  if (!S.schedEdit) S.schedEdit = { time: sc ? `${pad(sc.hour)}:${pad(sc.minute)}` : '06:23', paused: S.cfgValues['run.paused'] === true };
+  if (!S.schedEdit) S.schedEdit = { time: sc ? `${pad(sc.hour)}:${pad(sc.minute)}` : '09:23', paused: S.cfgValues['run.paused'] === true };
   const E = S.schedEdit;
   const tzName = sc ? sc.tz : 'Europe/Amsterdam';
   const msg = h('div', { class: 'hint' });
