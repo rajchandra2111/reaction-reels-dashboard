@@ -690,6 +690,7 @@ const SCHEMA = [
     { key: 'category', label: 'YouTube category', type: 'enum', adv: true,
       options: [['24', 'Entertainment'], ['1', 'Film & Animation'], ['23', 'Comedy'], ['22', 'People & Blogs'], ['20', 'Gaming'], ['17', 'Sports']] },
     { key: 'ahead_days', label: 'Schedule this many days ahead', type: 'int', min: 0, max: 7, adv: true, hint: '1 = a missed run costs no posts.' },
+    { key: 'jitter', label: 'Move each post time by up to (minutes, at random)', type: 'int', min: 0, max: 60, hint: 'So posts do not land on the exact same minute every day.' },
     { key: 'writer', label: 'Title writer', type: 'enum', options: [['auto', 'Auto'], ['gemini', 'Gemini'], ['local', 'Templates']], adv: true },
     { key: 'writer_models', label: 'Gemini models for titles, tried in order', type: 'str', adv: true },
     { key: 'notify_subscribers', label: 'Notify subscribers', type: 'bool', adv: true },
@@ -2070,33 +2071,51 @@ function burstCard(P) {
   for (const it of P.items || []) if (it.status === 'queued') (waitingBy[it.source] ||= []).push(it);
   const videos = Object.keys(waitingBy);
   if (!videos.length) return null;
-  const Bu = (S.burst ||= { source: '', until: '11:00' });
-  if (!videos.includes(Bu.source)) Bu.source = videos[0];
+  const all = videos.reduce((k, v) => k + waitingBy[v].length, 0);
+  const Bu = (S.burst ||= { source: '', until: '23:30', random: true, lo: 25, hi: 50 });
+  if (Bu.source && !videos.includes(Bu.source)) Bu.source = '';
   const note = h('div', { class: 'hint' });
   const paint = () => {
-    const n = (waitingBy[Bu.source] || []).length;
+    const n = Bu.source ? (waitingBy[Bu.source] || []).length : all;
     const [hh, mm] = (Bu.until || '').split(':').map(Number);
     const p = tzParts(new Date(), tz());
     const end = zonedToUtc(p.y, p.m, p.d, hh, mm, tz());
     const mins = (end - Date.now()) / 60000 - 20;
-    note.className = mins > 0 ? 'hint' : 'err';
-    note.textContent = mins > 0 ? `${n} reel${n === 1 ? '' : 's'} spread from about 20 minutes from now until ${Bu.until} today: one every ~${Math.max(1, Math.round(mins / Math.max(1, n)))} min. Reels that still need a look stay in Review.`
-      : `${Bu.until} is too soon today: pick a later time.`;
+    const lo = Number(Bu.lo), hi = Number(Bu.hi);
+    const badGap = Bu.random && !(lo >= 5 && hi >= lo && hi <= 240);
+    note.className = mins > 0 && !badGap ? 'hint' : 'err';
+    if (badGap) { note.textContent = 'Gap: from 5 to 240 minutes, the first number the smaller one.'; return; }
+    if (mins <= 0) { note.textContent = `${Bu.until} is too soon today: pick a later time.`; return; }
+    if (Bu.random) {
+      const fit = Math.min(n, Math.floor(mins / ((lo + hi) / 2)) + 1);
+      note.textContent = `About ${fit} of ${n} waiting reel${n === 1 ? '' : 's'} go out between ~20 minutes from now and ${Bu.until}, one at a time, ${lo}–${hi} min apart at random. The rest wait for the regular post times.`;
+    } else {
+      note.textContent = `${n} reel${n === 1 ? '' : 's'} spread from about 20 minutes from now until ${Bu.until} today: one every ~${Math.max(1, Math.round(mins / Math.max(1, n)))} min.`;
+    }
   };
   const sel = h('select', { class: 'input', onchange: e => { Bu.source = e.target.value; paint(); } },
+    h('option', { value: '' }, `All videos · ${all} waiting`),
     videos.map(v => h('option', { value: v }, `${clipName(v)} · ${waitingBy[v].length} waiting`)));
   sel.value = Bu.source;
+  const gapIn = k => h('input', { class: 'input num', type: 'number', min: 5, max: 240, step: 1, value: Bu[k], style: { width: '80px' },
+    'aria-label': k === 'lo' ? 'Shortest gap (minutes)' : 'Longest gap (minutes)', oninput: e => { Bu[k] = e.target.value; paint(); } });
+  const gaps = h('div', { class: 'row', style: { gap: '8px', alignItems: 'center' } }, gapIn('lo'), h('span', { class: 'muted' }, 'to'), gapIn('hi'), h('span', { class: 'muted' }, 'min'));
+  gaps.style.display = Bu.random ? 'flex' : 'none';
   paint();
   return h('div', { class: 'card', style: { marginTop: '14px' } },
-    h('div', { style: { marginBottom: '12px' } }, h('h2', null, "Post a video's reels by a time"),
-      h('div', { class: 'small muted' }, 'Instead of the regular post times: every waiting reel of one video goes out today, evenly spread.')),
+    h('div', { style: { marginBottom: '12px' } }, h('h2', null, 'Post waiting reels today'),
+      h('div', { class: 'small muted' }, 'Instead of the regular post times: waiting reels go out today, one at a time with a random gap (or evenly spread). Reels that still need a look stay in Review.')),
     h('div', { class: 'form-grid' },
       h('div', { class: 'field', style: { gridColumn: 'span 2' } }, h('label', null, 'Video'), sel),
-      h('div', { class: 'field' }, h('label', null, 'All posted by'),
+      h('div', { class: 'field' }, h('label', null, 'Last post by'),
         h('input', { class: 'input num', type: 'time', value: Bu.until, oninput: e => { Bu.until = e.target.value; paint(); } }))),
+    h('div', { class: 'row wrap', style: { marginTop: '12px', gap: '16px', alignItems: 'center' } },
+      h('label', { class: 'switch' }, h('input', { type: 'checkbox', checked: Bu.random, onchange: e => { Bu.random = e.target.checked; gaps.style.display = Bu.random ? 'flex' : 'none'; paint(); } }), 'One at a time, random gaps'),
+      gaps),
     h('div', { style: { marginTop: '8px' } }, note),
     h('div', { class: 'row', style: { marginTop: '12px' } },
-      taskButton('publish', () => ({ source: Bu.source, options: `until=${Bu.until}` }), 'Schedule them', 'btn primary', 'cal')));
+      taskButton('publish', () => ({ source: Bu.source, options: [`until=${Bu.until}`, Bu.random ? `gap=${Number(Bu.lo)}-${Number(Bu.hi)}` : ''].filter(Boolean).join(' ') }),
+        'Schedule them', 'btn primary', 'cal')));
 }
 function renderPublish(view) {
   const st = S.status, P = st && st.publish;
