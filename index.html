@@ -1387,7 +1387,7 @@ function renderMake(view) {
       taskButton('check-setup', {}, 'Check setup', 'btn'))));
 }
 function batchCard(st) {
-  const B = (S.make.batch ||= { source: '', max: '', dry: false, mode: 'default', more: false });
+  const B = (S.make.batch ||= { source: '', max: '', dry: false, mode: 'default', more: false, until: '', fresh: false });
   const movie = MOVIE();
   const sources = st ? st.sources.filter(s => !s.exhausted) : [];
   const note = h('div', { class: 'small muted' });
@@ -1398,7 +1398,10 @@ function batchCard(st) {
     note.textContent = (n ? `${n} ${movie ? 'good' : 'analysed'} moment${n === 1 ? '' : 's'} ready` : `No ${movie ? 'good' : 'analysed'} moments ready`) +
       (un ? ` + ${un} video${un === 1 ? '' : 's'} still to analyse (done first, about 1 min per 3 min of video)` : '') +
       (movie ? '. Each becomes a reel as long as its moment, framed, captioned and checked before it can be posted.'
-        : '. Each becomes a 10 s reel with the reaction that fits it.') + (B.dry ? ' Dry run: only shows the plan.' : '');
+        : '. Each becomes a 10 s reel with the reaction that fits it.') + (B.dry ? ' Dry run: only shows the plan.' : '') +
+      (movie && B.until && !B.dry ? (B.source ? ` When they are made, every reel that passes its checks is posted today, spread out so the last one goes up before ${B.until}.`
+        : ' Pick one video to post its reels by a time.') : '') +
+      (movie && B.fresh ? (B.source ? ' Starts the video over first: analysed again, its reels not posted yet are taken out of the queue.' : ' Pick one video to start it over.') : '');
   };
   const srcSel = h('select', { class: 'input', onchange: e => { B.source = e.target.value; paint(); } },
     h('option', { value: '' }, `All videos (${sources.length})`),
@@ -1411,15 +1414,27 @@ function batchCard(st) {
     h('div', { class: 'form-grid' },
       h('div', { class: 'field', style: { gridColumn: 'span 2' } }, h('label', null, 'Video'), srcSel),
       h('div', { class: 'field' }, h('label', null, 'At most (optional)'),
-        h('input', { class: 'input num', type: 'number', min: 1, max: 200, placeholder: 'all', value: B.max, oninput: e => { B.max = e.target.value; } }))),
+        h('input', { class: 'input num', type: 'number', min: 1, max: 200, placeholder: 'all', value: B.max, oninput: e => { B.max = e.target.value; } })),
+      movie ? h('div', { class: 'field' }, h('label', { title: 'Your time zone setting. Needs one video picked above.' }, 'Post them all today by (optional)'),
+        h('input', { class: 'input', type: 'time', value: B.until, 'aria-label': 'Post them all today by', oninput: e => { B.until = e.target.value; paint(); } })) : null),
     movie ? h('div', { style: { marginTop: '14px', maxWidth: '520px' } }, reactionModeControl(B)) : null,
     h('div', { style: { margin: '12px 0 4px' } }, note),
     h('div', { class: 'row wrap', style: { marginTop: '14px', gap: '16px' } },
       taskButton('batch-reels', () => ({ source: B.source, count: B.max, dry_run: B.dry, reaction_mode: movie ? B.mode : '',
-        options: movie && B.more ? 'min_score=50 cap=40 moments=50' : '' }), 'Make all reels', 'btn primary', 'play'),
+        options: movie ? [B.more ? 'min_score=50 cap=40 moments=50' : '', B.source && B.fresh ? 'fresh' : '',
+          B.source && B.until && !B.dry ? `until=${B.until} minutes=${batchMinutes(B.until)}` : ''].filter(Boolean).join(' ') : '' }),
+        'Make all reels', 'btn primary', 'play'),
       movie ? h('label', { class: 'switch', title: 'This run only: moments scoring 50+ (instead of your setting), no per-video limit, and Gemini looks for more moments in new videos' },
         h('input', { type: 'checkbox', checked: B.more, onchange: e => { B.more = e.target.checked; } }), 'As many reels as possible') : null,
+      movie ? h('label', { class: 'switch', title: 'Analyse the picked video again from scratch and take its reels that were not posted yet out of the queue' },
+        h('input', { type: 'checkbox', checked: B.fresh, onchange: e => { B.fresh = e.target.checked; paint(); } }), 'Start the video over') : null,
       h('label', { class: 'switch' }, h('input', { type: 'checkbox', checked: B.dry, onchange: e => { B.dry = e.target.checked; paint(); } }), 'Dry run')));
+}
+// "Post by HH:MM": leave time for start-up (~10 min), queueing and the first post's lead (~30 min); 20..90 min of making
+function batchMinutes(until) {
+  const [hh, mm] = until.split(':').map(Number), now = new Date(), end = new Date(now);
+  end.setHours(hh, mm, 0, 0);
+  return Math.max(20, Math.min(90, Math.floor((end - now) / 60000) - 40));
 }
 function customCard(st, today) {
   const C = S.make.custom, perReel = (st && st.config.duration) || 10;
