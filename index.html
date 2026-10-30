@@ -641,11 +641,23 @@ const SCHEMA = [
     { key: 'watermark_font', label: 'Watermark font file', type: 'str', adv: true, placeholder: 'auto' },
   ]},
   { section: 'audio', title: 'Sound', blurb: 'Mix between the movie and your reaction.', fields: [
+    { key: 'movie_first', label: "The movie's sound leads", type: 'bool',
+      hint: 'Both sounds are levelled; the movie is never turned down under your voice.' },
+    { key: 'reaction_gap_db', label: 'Your voice under the movie', type: 'float', min: 0, max: 24, step: 1, slider: true, show: v => `${Number(v).toFixed(0)} dB quieter`,
+      hint: '6 dB: clearly audible, the movie still the main thing. 0 = as loud as the movie.' },
     { key: 'content_volume', label: 'Content volume', type: 'float', min: 0, max: 4, step: 0.05, slider: true, show: v => `${Math.round(v * 100)}%` },
     { key: 'reaction_volume', label: 'Reaction volume', type: 'float', min: 0, max: 4, step: 0.05, slider: true, show: v => `${Math.round(v * 100)}%` },
     { key: 'normalize', label: 'Even out loudness', type: 'bool' },
     { key: 'target_lufs', label: 'Loudness target (LUFS)', type: 'float', min: -30, max: -5, step: 0.5 },
     { key: 'bitrate', label: 'Audio bitrate', type: 'str', pattern: /^\d+k$/, patternMsg: 'Looks like 160k', adv: true },
+  ]},
+  { section: 'enhance', title: 'Picture boost', blurb: 'Makes the movie pop next to your reaction, so the eye goes to the main content. Your reaction stays as filmed.', fields: [
+    { key: 'enabled', label: 'Boost the movie picture', type: 'bool' },
+    { key: 'match_reaction', label: 'Lift dark scenes towards my reaction\'s brightness', type: 'bool', hint: 'Never brighter than your reaction (and never washed out).' },
+    { key: 'saturation', label: 'Colour', type: 'float', min: 0.5, max: 2, step: 0.05, slider: true, show: v => `${Math.round(v * 100)}%` },
+    { key: 'contrast', label: 'Contrast', type: 'float', min: 0.5, max: 2, step: 0.02, slider: true, show: v => `${Math.round(v * 100)}%` },
+    { key: 'sharpen', label: 'Sharpness', type: 'float', min: 0, max: 1.5, step: 0.1, slider: true, show: v => v ? `+${Number(v).toFixed(1)}` : 'off' },
+    { key: 'max_lift', label: 'Strongest brightening of dark scenes', type: 'float', min: 1, max: 2.5, step: 0.1, adv: true, show: v => `${Number(v).toFixed(1)}×` },
   ]},
   { section: 'picker', title: 'Picking clips', blurb: 'How moments and reactions are chosen. Mostly for the classic engine.', fields: [
     { key: 'selection', label: 'Moment selection', type: 'enum', options: [['random', 'Random'], ['loudest', 'Loudest']],
