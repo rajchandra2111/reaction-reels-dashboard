@@ -574,11 +574,11 @@ const SCHEMA = [
   ]},
   { section: 'layout', title: 'Framing', blurb: 'How the movie and your reaction share the screen. Nothing important is ever cut off.', fields: [
     { key: 'style', label: 'Look of every reel', type: 'enum', custom: true,
-      options: [['classic', 'Classic'], ['square', 'Reaction on top'], ['focus', 'Subject close-up'], ['split', 'Split screen'], ['meme', 'Meme title'], ['reactor', 'Reactor']] },
+      options: [['classic', 'Classic'], ['square', 'Reaction on top'], ['focus', 'Camera follow'], ['split', 'Split screen'], ['meme', 'Meme title'], ['reactor', 'Reactor']] },
     ...['dialogue', 'funny', 'spectacle', 'reveal', 'emotional', 'story'].map(t => ({ key: `style_${t}`, label: t, type: 'enum', custom: true,
-      options: [['', 'Same'], ['classic', 'Classic'], ['square', 'Reaction on top'], ['focus', 'Subject close-up'], ['split', 'Split screen'], ['meme', 'Meme title'], ['reactor', 'Reactor']] })),
-    { key: 'focus_bubble', label: 'Your circle in Subject close-up', type: 'enum', custom: true, options: [['top', 'Top corner'], ['side', 'Left side'], ['bottom', 'Bottom corner']] },
-    { key: 'focus_bubble_size', label: 'Circle size in Subject close-up (px)', type: 'int', min: 160, max: 420, adv: true },
+      options: [['', 'Same'], ['classic', 'Classic'], ['square', 'Reaction on top'], ['focus', 'Camera follow'], ['split', 'Split screen'], ['meme', 'Meme title'], ['reactor', 'Reactor']] })),
+    { key: 'focus_bubble', label: 'Your circle in Camera follow', type: 'enum', custom: true, options: [['top', 'Top corner'], ['side', 'Left side'], ['bottom', 'Bottom corner']] },
+    { key: 'focus_bubble_size', label: 'Circle size in Camera follow (px)', type: 'int', min: 160, max: 420, adv: true },
     { key: 'tracking', label: 'Close-ups that follow faces and action', type: 'bool',
       hint: 'Needs the Gemini key. Only used when the subject fits in every frame; otherwise the whole frame is shown.' },
     { key: 'safe_zone', label: 'Keep text and faces clear of', type: 'enum', options: [['youtube', 'YouTube'], ['tiktok', 'TikTok'], ['none', 'None']],
@@ -1561,7 +1561,7 @@ const PLACEMENT = { box: 'box under the movie', bubble: 'round bubble', popin: '
 const LOOKS = [
   ['classic', 'Classic', 'The director frames the movie (whole, close-up or two-shot); you in a box or bubble.'],
   ['square', 'Reaction on top', 'You full width on top; below, a square of the movie that follows the face or action.'],
-  ['focus', 'Subject close-up', 'The character who speaks fills the screen; you in a small circle out of the way.'],
+  ['focus', 'Camera follow', 'A camera follows the face and hands: close on calm moments, wider on action. You in a small circle.'],
   ['split', 'Split screen', 'You full width on top, the whole movie below. The classic reaction format.'],
   ['meme', 'Meme title', 'White bar with big text and you in a card, the movie below. Made for lines and jokes.'],
   ['reactor', 'Reactor', 'Your face big, the movie in a framed card above you. For shocks and hype.'],
@@ -2388,7 +2388,7 @@ function looksCard() {
         h('span', { class: 'uses' }, uses.length === LOOK_TYPES.length ? 'Every moment' : uses.length ? uses.join(', ') : ''));
     })),
     (def === 'focus' || LOOK_TYPES.some(t => val(`style_${t}`) === 'focus')) ? h('div', { style: { marginTop: '16px', maxWidth: '520px' } },
-      segCtl('Your circle in Subject close-up', [['top', 'Top corner'], ['side', 'Left side'], ['bottom', 'Bottom corner']], () => val('focus_bubble') || 'top',
+      segCtl('Your circle in Camera follow', [['top', 'Top corner'], ['side', 'Left side'], ['bottom', 'Bottom corner']], () => val('focus_bubble') || 'top',
         v => set('focus_bubble', v), 'Top corner sits in the headroom, Left side away from the like/comment buttons, Bottom corner partly under YouTube\'s title area.')) : null,
     h('div', { class: 'small', style: { marginTop: '18px', fontWeight: 650 } }, 'Per kind of moment'),
     h('div', { class: 'per-type' }, LOOK_TYPES.map(t => h('div', { class: 'field' }, h('div', { class: 'lbl' }, `${TYPE_LABEL[t]} moments`),
