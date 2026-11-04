@@ -219,6 +219,7 @@ details.adv[open]>summary svg,svg.i.rot{transform:rotate(180deg)}
 .scene.on{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 25%,transparent)}
 .tl .pk{position:absolute;top:50%;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;box-shadow:0 0 0 2px var(--surface-2);pointer-events:none}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.tchip{display:inline-block;border:1px solid var(--border);border-radius:999px;padding:2px 9px;font-size:12px;color:var(--muted);background:var(--surface);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* ---- publishing */
 textarea.input{min-height:110px;resize:vertical;line-height:1.45;font-size:14px}
@@ -711,6 +712,12 @@ const SCHEMA = [
       hint: '1 = a different film in every post of the day (variety keeps viewers). 0 = no limit.' },
     { key: 'casual', label: 'Titles sound like a person typing (lowercase is fine)', type: 'bool',
       hint: 'Hook first, casual, a question for the comments. Off = "Film – what happens" titles.' },
+    { key: 'trends', label: 'Use what is trending on Shorts right now', type: 'bool',
+      hint: 'Before posting: the tags, hashtags and titles of the most-viewed Shorts about the film (last day and week). Only names from the same film are used.' },
+    { key: 'trend_seeds', label: 'Radar searches for "Trending now" (comma-separated)', type: 'str', max: 300, placeholder: 'marvel, movie scene reaction' },
+    { key: 'trend_searches', label: 'YouTube searches per run at most', type: 'int', min: 0, max: 40, adv: true,
+      hint: 'Each costs 100 of the 10,000 daily YouTube units (an upload costs 1,600).' },
+    { key: 'trend_hours', label: 'Look a film up again after (hours)', type: 'float', min: 1, max: 168, step: 1, adv: true },
     { key: 'writer', label: 'Title writer', type: 'enum', options: [['auto', 'Auto'], ['gemini', 'Gemini'], ['local', 'Templates']], adv: true },
     { key: 'writer_models', label: 'Gemini models for titles, tried in order', type: 'str', adv: true },
     { key: 'notify_subscribers', label: 'Notify subscribers', type: 'bool', adv: true },
@@ -2140,6 +2147,27 @@ function burstCard(P) {
       taskButton('publish', () => ({ source: Bu.source, options: [`until=${Bu.until}`, Bu.random ? `gap=${Number(Bu.lo)}-${Number(Bu.hi)}` : ''].filter(Boolean).join(' ') }),
         'Schedule them', 'btn primary', 'cal')));
 }
+function trendsCard(list) {
+  if (!list || !list.length) return null;
+  const views = n => Number(n || 0) >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : Number(n || 0) >= 1e3 ? `${Math.round(n / 1e3)}K` : String(n || 0);
+  const block = e => {
+    const w = e.week || {}, d = e.day || {};
+    return h('div', { class: 'item', style: { alignItems: 'flex-start', flexDirection: 'column', gap: '6px' } },
+      h('div', { class: 'row between', style: { width: '100%' } },
+        h('strong', { class: 'ellipsis' }, e.query),
+        h('span', { class: 'tiny faint' }, e.at ? 'checked ' + relTime(e.at) : '')),
+      (w.titles || []).length ? h('div', { class: 'list', style: { width: '100%' } }, (w.titles || []).slice(0, 3).map(t =>
+        h('div', { class: 'small row between', style: { gap: '10px' } }, h('span', { class: 'ellipsis' }, t[0]), h('span', { class: 'num muted' }, views(t[1]) + ' views')))) :
+        h('div', { class: 'tiny faint' }, 'No Shorts found this week.'),
+      (w.tags || []).length || (w.hashtags || []).length ? h('div', { class: 'chips', style: { marginTop: '2px' } },
+        [...(w.hashtags || []).slice(0, 5), ...(w.tags || []).slice(0, 8)].map(t => h('span', { class: 'tchip' }, t))) : null,
+      (d.titles || []).length ? h('div', { class: 'tiny muted ellipsis', style: { width: '100%' } }, 'Last 24 h: ', d.titles[0][0], ` · ${views(d.titles[0][1])} views`) : null);
+  };
+  return h('div', { class: 'card', style: { marginTop: '14px' } },
+    h('div', { style: { marginBottom: '8px' } }, h('h2', null, 'Trending now on Shorts'),
+      h('div', { class: 'small muted' }, 'The most-viewed Shorts of the last 7 days about your films (and the radar searches in Settings). Before a reel posts, their tags and hashtags that fit it are added; names from other films never are. A film that is hot here is a good one to add next.')),
+    h('div', { class: 'list' }, list.slice(0, 8).map(block)));
+}
 function renderPublish(view) {
   const st = S.status, P = st && st.publish;
   if (!P) {
@@ -2157,6 +2185,7 @@ function renderPublish(view) {
   view.append(pubHeader(P));
   if (!P.connected) view.append(setupCard(P));
   else { const bc = burstCard(P); if (bc) view.append(bc); }
+  { const tc = trendsCard(st.trends); if (tc) view.append(tc); }
 
   const items = P.items || [];
   const byAt = (a, b) => String(a.at || '').localeCompare(String(b.at || ''));
